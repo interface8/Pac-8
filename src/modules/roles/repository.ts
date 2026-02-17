@@ -13,7 +13,22 @@ const roleWithPermissions = {
   },
 } as const;
 
-function toRoleDto(role: any): RoleDto {
+interface RoleWithPermissions {
+  id: string;
+  name: string;
+  description: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  permissions: Array<{
+    permission: {
+      id: string;
+      resource: string;
+      action: string;
+    };
+  }>;
+}
+
+function toRoleDto(role: RoleWithPermissions): RoleDto {
   return {
     id: role.id,
     name: role.name,
@@ -21,7 +36,7 @@ function toRoleDto(role: any): RoleDto {
     createdAt: role.createdAt,
     updatedAt: role.updatedAt,
     permissions:
-      role.permissions?.map((rp: any) => ({
+      role.permissions?.map((rp) => ({
         id: rp.permission.id,
         resource: rp.permission.resource,
         action: rp.permission.action,
@@ -63,7 +78,11 @@ export async function updateRole(
   id: string,
   input: UpdateRoleInput,
 ): Promise<RoleDto> {
-  const data: any = {};
+  const data: {
+    name?: string;
+    description?: string | null;
+    permissions?: { create: Array<{ permissionId: string }> };
+  } = {};
   if (input.name) data.name = input.name;
   if (input.description !== undefined) data.description = input.description;
 

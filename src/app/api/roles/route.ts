@@ -11,8 +11,9 @@ export async function GET() {
   try {
     const roles = await roleService.listRoles();
     return jsonResponse(roles);
-  } catch (error: any) {
-    return errorResponse(error.message ?? "Failed to fetch roles", 500);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to fetch roles";
+    return errorResponse(message, 500);
   }
 }
 
@@ -34,7 +35,8 @@ export async function POST(request: NextRequest) {
 
     const role = await roleService.createRole(parsed.data);
     return jsonResponse(role, 201);
-  } catch (error: any) {
-    return errorResponse(error.message ?? "Failed to create role", 500);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to create role";
+    return errorResponse(message, 500);
   }
 }

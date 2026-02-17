@@ -45,7 +45,7 @@ model Permission {
 
   roles RolePermission[]
 
-  @@unique([resource, action])
+  @@unique([resource, action], name: "resource_action")
   @@map("permissions")
 }
 

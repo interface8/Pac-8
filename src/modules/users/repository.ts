@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
+import type { Prisma } from "@prisma/client";
 import type {
   CreateUserInput,
   UpdateUserInput,
@@ -21,8 +22,23 @@ const userWithRoles = {
   },
 } as const;
 
+interface UserWithRoles {
+  id: string;
+  email: string;
+  name: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  roles: Array<{
+    role: {
+      id: string;
+      name: string;
+    };
+  }>;
+}
+
 // ─── Map Prisma result to UserDto ──────────────────────
-function toUserDto(user: any): UserDto {
+function toUserDto(user: UserWithRoles): UserDto {
   return {
     id: user.id,
     email: user.email,
@@ -30,7 +46,7 @@ function toUserDto(user: any): UserDto {
     isActive: user.isActive,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
-    roles: user.roles?.map((ur: any) => ({
+    roles: user.roles?.map((ur) => ({
       id: ur.role.id,
       name: ur.role.name,
     })) ?? [],
@@ -45,7 +61,7 @@ export async function findUsers(
   const { search, isActive, roleId, page = 1, limit = 10 } = filters;
   const skip = (page - 1) * limit;
 
-  const where: any = {};
+  const where: Prisma.UserWhereInput = {};
 
   if (search) {
     where.OR = [
@@ -122,7 +138,13 @@ export async function updateUser(
   id: string,
   input: UpdateUserInput,
 ): Promise<UserDto> {
-  const data: any = {};
+  const data: {
+    email?: string;
+    name?: string;
+    isActive?: boolean;
+    password?: string;
+    roles?: { create: Array<{ roleId: string }> };
+  } = {};
 
   if (input.email) data.email = input.email;
   if (input.name) data.name = input.name;

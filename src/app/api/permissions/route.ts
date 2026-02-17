@@ -11,8 +11,9 @@ export async function GET() {
   try {
     const permissions = await permissionService.listPermissions();
     return jsonResponse(permissions);
-  } catch (error: any) {
-    return errorResponse(error.message ?? "Failed to fetch permissions", 500);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to fetch permissions";
+    return errorResponse(message, 500);
   }
 }
 
@@ -34,7 +35,8 @@ export async function POST(request: NextRequest) {
 
     const permission = await permissionService.createPermission(parsed.data);
     return jsonResponse(permission, 201);
-  } catch (error: any) {
-    return errorResponse(error.message ?? "Failed to create permission", 500);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to create permission";
+    return errorResponse(message, 500);
   }
 }

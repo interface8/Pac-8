@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
       },
       201,
     );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     if (error.message === "Email already in use") {
       return errorResponse("Email already in use", 409);

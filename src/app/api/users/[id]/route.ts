@@ -15,11 +15,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const user = await userService.getUserById(params.id);
     return jsonResponse(user);
-  } catch (error: any) {
-    if (error.message === "User not found") {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "User not found") {
       return errorResponse("User not found", 404);
     }
-    return errorResponse(error.message ?? "Failed to fetch user", 500);
+    const message = error instanceof Error ? error.message : "Failed to fetch user";
+    return errorResponse(message, 500);
   }
 }
 
@@ -41,11 +42,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const user = await userService.updateUser(params.id, parsed.data);
     return jsonResponse(user);
-  } catch (error: any) {
-    if (error.message === "Email already in use") {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "Email already in use") {
       return errorResponse("Email already in use", 409);
     }
-    return errorResponse(error.message ?? "Failed to update user", 500);
+    const message = error instanceof Error ? error.message : "Failed to update user";
+    return errorResponse(message, 500);
   }
 }
 
@@ -57,10 +59,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     await userService.deleteUser(params.id);
     return new Response(null, { status: 204 });
-  } catch (error: any) {
-    if (error.message === "User not found") {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "User not found") {
       return errorResponse("User not found", 404);
     }
-    return errorResponse(error.message ?? "Failed to delete user", 500);
+    const message = error instanceof Error ? error.message : "Internal server error";
+    return errorResponse(message, 500);
   }
 }

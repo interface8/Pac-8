@@ -15,11 +15,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const permission = await permissionService.getPermissionById(params.id);
     return jsonResponse(permission);
-  } catch (error: any) {
-    if (error.message === "Permission not found") {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "Permission not found") {
       return errorResponse("Permission not found", 404);
     }
-    return errorResponse(error.message, 500);
+    const message = error instanceof Error ? error.message : "Internal server error";
+    return errorResponse(message, 500);
   }
 }
 
@@ -41,8 +42,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const permission = await permissionService.updatePermission(params.id, parsed.data);
     return jsonResponse(permission);
-  } catch (error: any) {
-    return errorResponse(error.message, 500);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Internal server error";
+    return errorResponse(message, 500);
   }
 }
 
@@ -54,10 +56,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     await permissionService.deletePermission(params.id);
     return new Response(null, { status: 204 });
-  } catch (error: any) {
-    if (error.message === "Permission not found") {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "Permission not found") {
       return errorResponse("Permission not found", 404);
     }
-    return errorResponse(error.message, 500);
+    const message = error instanceof Error ? error.message : "Internal server error";
+    return errorResponse(message, 500);
   }
 }

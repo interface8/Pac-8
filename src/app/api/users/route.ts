@@ -13,8 +13,9 @@ export async function GET(request: NextRequest) {
     const filters = userFiltersSchema.parse(Object.fromEntries(searchParams));
     const result = await userService.listUsers(filters);
     return jsonResponse(result);
-  } catch (error: any) {
-    return errorResponse(error.message ?? "Failed to fetch users", 500);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to fetch users";
+    return errorResponse(message, 500);
   }
 }
 
@@ -36,10 +37,11 @@ export async function POST(request: NextRequest) {
 
     const user = await userService.createUser(parsed.data);
     return jsonResponse(user, 201);
-  } catch (error: any) {
-    if (error.message === "Email already in use") {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "Email already in use") {
       return errorResponse("Email already in use", 409);
     }
-    return errorResponse(error.message ?? "Failed to create user", 500);
+    const message = error instanceof Error ? error.message : "Failed to create user";
+    return errorResponse(message, 500);
   }
 }

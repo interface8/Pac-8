@@ -27,20 +27,6 @@ function getSecret() {
   return new TextEncoder().encode(secret);
 }
 
-function parseExpiry(value: string): number {
-  const match = value.match(/^(\d+)([smhd])$/);
-  if (!match) return 60 * 60 * 24 * 7; // default 7d
-  const num = parseInt(match[1], 10);
-  const unit = match[2];
-  const multipliers: Record<string, number> = {
-    s: 1,
-    m: 60,
-    h: 3600,
-    d: 86400,
-  };
-  return num * (multipliers[unit] ?? 86400);
-}
-
 // ─── Sign JWT ───────────────────────────────────────────
 export async function signJwt(payload: Omit<JwtPayload, "iat" | "exp">): Promise<string> {
   const expiresIn = process.env.JWT_EXPIRES_IN ?? "7d";
@@ -110,11 +96,18 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
 
   if (!user || !user.isActive) return null;
 
-  const roles = user.roles.map((ur: any) => ur.role.name as string);
+  interface UserRole {
+    role: {
+      name: string;
+      permissions: Array<{ permission: { resource: string; action: string } }>;
+    };
+  }
+  
+  const roles = user.roles.map((ur: UserRole) => ur.role.name);
   const permissionsSet = new Set<string>(
-    user.roles.flatMap((ur: any) =>
+    user.roles.flatMap((ur: UserRole) =>
       ur.role.permissions.map(
-        (rp: any) => `${rp.permission.resource}.${rp.permission.action}`,
+        (rp) => `${rp.permission.resource}.${rp.permission.action}`,
       ),
     ),
   );

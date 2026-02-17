@@ -4,8 +4,9 @@ import type {
   UpdatePermissionInput,
   PermissionDto,
 } from "./types";
+import type { Permission } from "@prisma/client";
 
-function toPermissionDto(p: any): PermissionDto {
+function toPermissionDto(p: Permission): PermissionDto {
   return {
     id: p.id,
     resource: p.resource,
