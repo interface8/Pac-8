@@ -45,7 +45,7 @@ export function useAuth() {
       router.refresh();
       return { success: true };
     } catch (err) {
-      const errorMessage = "Something went wrong";
+      const errorMessage = "Something went wrong" + (err instanceof Error ? `: ${err.message}` : "");
       setError(errorMessage);
       return { success: false, message: errorMessage };
     } finally {
@@ -76,7 +76,7 @@ export function useAuth() {
       router.refresh();
       return { success: true };
     } catch (err) {
-      const errorMessage = "Something went wrong";
+      const errorMessage = "Something went wrong" + (err instanceof Error ? `: ${err.message}` : "");
       setError(errorMessage);
       return { success: false, message: errorMessage };
     } finally {
@@ -104,7 +104,7 @@ export function useAuth() {
       router.refresh();
       return { success: true };
     } catch (err) {
-      const errorMessage = "Something went wrong";
+      const errorMessage = "Something went wrong" + (err instanceof Error ? `: ${err.message}` : "");
       setError(errorMessage);
       return { success: false, message: errorMessage };
     } finally {

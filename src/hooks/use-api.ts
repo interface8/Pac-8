@@ -28,7 +28,7 @@ export function useApi<T = unknown>() {
 
       return { data, error: null };
     } catch (err) {
-      const errorMessage = "Something went wrong";
+      const errorMessage = "Something went wrong" + (err instanceof Error ? `: ${err.message}` : "");
       setError(errorMessage);
       return { data: null, error: errorMessage };
     } finally {
