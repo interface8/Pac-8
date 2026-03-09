@@ -1,53 +1,87 @@
 import { getCurrentUser } from "@/lib/auth";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
 
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Dashboard</h1>
-
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="rounded-lg border bg-white p-6 shadow-sm">
-          <h3 className="text-sm font-medium text-gray-500">Welcome</h3>
-          <p className="mt-1 text-lg font-semibold text-gray-900">
-            {user?.name}
-          </p>
-        </div>
-
-        <div className="rounded-lg border bg-white p-6 shadow-sm">
-          <h3 className="text-sm font-medium text-gray-500">Roles</h3>
-          <p className="mt-1 text-lg font-semibold text-gray-900">
-            {user?.roles.join(", ") || "None assigned"}
-          </p>
-        </div>
-
-        <div className="rounded-lg border bg-white p-6 shadow-sm">
-          <h3 className="text-sm font-medium text-gray-500">Permissions</h3>
-          <p className="mt-1 text-lg font-semibold text-gray-900">
-            {user?.permissions.length ?? 0}
-          </p>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground">
+          Welcome back, {user?.name}
+        </p>
       </div>
 
-      <div className="mt-8 rounded-lg border bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">
-          Your Permissions
-        </h2>
-        <div className="flex flex-wrap gap-2">
-          {user?.permissions.map((perm) => (
-            <span
-              key={perm}
-              className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700"
-            >
-              {perm}
-            </span>
-          ))}
-          {(!user?.permissions || user.permissions.length === 0) && (
-            <p className="text-sm text-gray-500">No permissions assigned.</p>
-          )}
-        </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Welcome</CardDescription>
+            <CardTitle className="text-lg">{user?.name}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">{user?.email}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Roles</CardDescription>
+            <CardTitle className="text-lg">
+              {user?.roles.join(", ") || "None assigned"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">
+              {user?.roles.length ?? 0} role(s) assigned
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Permissions</CardDescription>
+            <CardTitle className="text-lg">
+              {user?.permissions.length ?? 0}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">
+              Total active permissions
+            </p>
+          </CardContent>
+        </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Permissions</CardTitle>
+          <CardDescription>
+            All permissions assigned to your account through roles
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {user?.permissions.map((perm) => (
+              <Badge key={perm} variant="secondary">
+                {perm}
+              </Badge>
+            ))}
+            {(!user?.permissions || user.permissions.length === 0) && (
+              <p className="text-sm text-muted-foreground">
+                No permissions assigned.
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

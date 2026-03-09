@@ -3,6 +3,38 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { usePermission } from "@/components/providers/auth-provider";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 
 interface RoleDto {
   id: string;
@@ -37,6 +69,7 @@ export function RolesClient() {
 
   const [editing, setEditing] = useState<RoleDto | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<RoleDto | null>(null);
 
   const { data: roles, isLoading } = useQuery({
     queryKey: ["roles"],
@@ -53,105 +86,162 @@ export function RolesClient() {
       const res = await fetch(`/api/roles/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete role");
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["roles"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["roles"] });
+      setDeleteTarget(null);
+    },
   });
 
   return (
-    <div>
+    <>
       {canCreate && (
-        <div className="mb-4 flex justify-end">
-          <button
+        <div className="flex justify-end">
+          <Button
             onClick={() => {
               setEditing(null);
               setShowForm(true);
             }}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
           >
-            + New Role
-          </button>
+            <Plus className="size-4" />
+            New Role
+          </Button>
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {isLoading ? (
-          <p className="text-sm text-gray-500">Loading...</p>
-        ) : roles?.length === 0 ? (
-          <p className="text-sm text-gray-500">No roles found.</p>
-        ) : (
-          roles?.map((role) => (
-            <div key={role.id} className="rounded-lg border bg-white p-5 shadow-sm">
-              <div className="mb-3 flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold text-gray-900">{role.name}</h3>
-                  {role.description && (
-                    <p className="mt-0.5 text-sm text-gray-500">
-                      {role.description}
-                    </p>
+      {isLoading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-5 w-24" />
+                <Skeleton className="h-4 w-40" />
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-1">
+                  <Skeleton className="h-5 w-16" />
+                  <Skeleton className="h-5 w-20" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : roles?.length === 0 ? (
+        <Card>
+          <CardContent className="py-8 text-center text-muted-foreground">
+            No roles found.
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {roles?.map((role) => (
+            <Card key={role.id}>
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-base">{role.name}</CardTitle>
+                    {role.description && (
+                      <CardDescription>{role.description}</CardDescription>
+                    )}
+                  </div>
+                  <div className="flex gap-1">
+                    {canUpdate && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditing(role);
+                          setShowForm(true);
+                        }}
+                      >
+                        <Pencil className="size-3.5" />
+                      </Button>
+                    )}
+                    {canDelete && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDeleteTarget(role)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-1">
+                  {role.permissions.map((p) => (
+                    <Badge key={p.id} variant="secondary" className="text-xs">
+                      {p.resource}.{p.action}
+                    </Badge>
+                  ))}
+                  {role.permissions.length === 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      No permissions assigned
+                    </span>
                   )}
                 </div>
-                <div className="flex gap-2">
-                  {canUpdate && (
-                    <button
-                      onClick={() => {
-                        setEditing(role);
-                        setShowForm(true);
-                      }}
-                      className="text-xs text-blue-600 hover:text-blue-800"
-                    >
-                      Edit
-                    </button>
-                  )}
-                  {canDelete && (
-                    <button
-                      onClick={() => {
-                        if (confirm("Delete this role?"))
-                          deleteMutation.mutate(role.id);
-                      }}
-                      className="text-xs text-red-600 hover:text-red-800"
-                    >
-                      Delete
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-1">
-                {role.permissions.map((p) => (
-                  <span
-                    key={p.id}
-                    className="rounded bg-blue-50 px-2 py-0.5 text-xs text-blue-700"
-                  >
-                    {p.resource}.{p.action}
-                  </span>
-                ))}
-                {role.permissions.length === 0 && (
-                  <span className="text-xs text-gray-400">
-                    No permissions assigned
-                  </span>
-                )}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {showForm && (
-        <RoleFormModal
-          role={editing}
-          permissions={permissions ?? []}
-          onClose={() => {
-            setShowForm(false);
-            setEditing(null);
-          }}
-        />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
-    </div>
+
+      {/* Form Dialog */}
+      <Dialog open={showForm} onOpenChange={(open) => {
+        if (!open) {
+          setShowForm(false);
+          setEditing(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Edit Role" : "Create Role"}</DialogTitle>
+            <DialogDescription>
+              {editing
+                ? "Modify role details and permission assignments"
+                : "Create a new role with specific permissions"}
+            </DialogDescription>
+          </DialogHeader>
+          <RoleFormInner
+            role={editing}
+            permissions={permissions ?? []}
+            onClose={() => {
+              setShowForm(false);
+              setEditing(null);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Role</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &ldquo;{deleteTarget?.name}&rdquo;? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
-// ─── Role Form Modal ───────────────────────────────────
+// ─── Role Form (inside Dialog) ─────────────────────────
 
-function RoleFormModal({
+function RoleFormInner({
   role,
   permissions,
   onClose,
@@ -208,91 +298,65 @@ function RoleFormModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">
-          {isEditing ? "Edit Role" : "Create Role"}
-        </h2>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-        {error && (
-          <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-600">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Name
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              className="w-full rounded-md border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Description
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              className="w-full rounded-md border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              Permissions
-            </label>
-            <div className="max-h-48 overflow-y-auto rounded-md border p-3">
-              <div className="flex flex-wrap gap-2">
-                {permissions.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => togglePermission(p.id)}
-                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                      selectedPermissionIds.includes(p.id)
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    {p.resource}.{p.action}
-                  </button>
-                ))}
-                {permissions.length === 0 && (
-                  <p className="text-xs text-gray-500">
-                    No permissions available.
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={mutation.isPending}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {mutation.isPending ? "Saving..." : isEditing ? "Update" : "Create"}
-            </button>
-          </div>
-        </form>
+      <div className="space-y-2">
+        <Label htmlFor="role-name">Name</Label>
+        <Input
+          id="role-name"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
       </div>
-    </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="role-desc">Description</Label>
+        <Textarea
+          id="role-desc"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={2}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Permissions</Label>
+        <div className="max-h-48 overflow-y-auto rounded-md border p-3">
+          <div className="flex flex-wrap gap-2">
+            {permissions.map((p) => (
+              <Badge
+                key={p.id}
+                variant={selectedPermissionIds.includes(p.id) ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => togglePermission(p.id)}
+              >
+                {p.resource}.{p.action}
+              </Badge>
+            ))}
+            {permissions.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No permissions available.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-3 pt-2">
+        <Button type="button" variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={mutation.isPending}>
+          {mutation.isPending ? "Saving..." : isEditing ? "Update" : "Create"}
+        </Button>
+      </div>
+    </form>
   );
 }

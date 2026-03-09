@@ -5,10 +5,13 @@ export default async function RolesPage() {
   await requirePermission("roles.read");
 
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">
-        Role Management
-      </h1>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Role Management</h1>
+        <p className="text-muted-foreground">
+          Define roles and assign permissions to control access
+        </p>
+      </div>
       <RolesClient />
     </div>
   );

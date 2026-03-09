@@ -3,6 +3,35 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { usePermission } from "@/components/providers/auth-provider";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 
 interface PermissionDto {
   id: string;
@@ -25,6 +54,7 @@ export function PermissionsClient() {
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<PermissionDto | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PermissionDto | null>(null);
 
   const { data: permissions, isLoading } = useQuery({
     queryKey: ["permissions"],
@@ -36,8 +66,10 @@ export function PermissionsClient() {
       const res = await fetch(`/api/permissions/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete permission");
     },
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["permissions"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["permissions"] });
+      setDeleteTarget(null);
+    },
   });
 
   // Group permissions by resource
@@ -51,96 +83,153 @@ export function PermissionsClient() {
   );
 
   return (
-    <div>
+    <>
       {canCreate && (
-        <div className="mb-4 flex justify-end">
-          <button
+        <div className="flex justify-end">
+          <Button
             onClick={() => {
               setEditing(null);
               setShowForm(true);
             }}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
           >
-            + New Permission
-          </button>
+            <Plus className="size-4" />
+            New Permission
+          </Button>
         </div>
       )}
 
       {isLoading ? (
-        <p className="text-sm text-gray-500">Loading...</p>
+        <div className="space-y-4">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : Object.keys(grouped).length === 0 ? (
-        <p className="text-sm text-gray-500">No permissions found.</p>
+        <Card>
+          <CardContent className="py-8 text-center text-muted-foreground">
+            No permissions found.
+          </CardContent>
+        </Card>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {Object.entries(grouped).map(([resource, perms]) => (
-            <div key={resource} className="rounded-lg border bg-white p-5 shadow-sm">
-              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
-                {resource}
-              </h3>
-              <div className="space-y-2">
+            <Card key={resource}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  {resource}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
                 {perms.map((perm) => (
                   <div
                     key={perm.id}
-                    className="flex items-center justify-between rounded-md bg-gray-50 px-4 py-2"
+                    className="flex items-center justify-between rounded-md bg-muted/50 px-4 py-2.5"
                   >
                     <div>
-                      <span className="text-sm font-medium text-gray-900">
+                      <span className="text-sm font-medium">
                         {perm.resource}.{perm.action}
                       </span>
                       {perm.description && (
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-muted-foreground">
                           {perm.description}
                         </p>
                       )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1">
                       {canUpdate && (
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => {
                             setEditing(perm);
                             setShowForm(true);
                           }}
-                          className="text-xs text-blue-600 hover:text-blue-800"
                         >
-                          Edit
-                        </button>
+                          <Pencil className="size-3.5" />
+                        </Button>
                       )}
                       {canDelete && (
-                        <button
-                          onClick={() => {
-                            if (confirm("Delete this permission?"))
-                              deleteMutation.mutate(perm.id);
-                          }}
-                          className="text-xs text-red-600 hover:text-red-800"
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeleteTarget(perm)}
+                          className="text-destructive hover:text-destructive"
                         >
-                          Delete
-                        </button>
+                          <Trash2 className="size-3.5" />
+                        </Button>
                       )}
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
 
-      {showForm && (
-        <PermissionFormModal
-          permission={editing}
-          onClose={() => {
-            setShowForm(false);
-            setEditing(null);
-          }}
-        />
-      )}
-    </div>
+      {/* Form Dialog */}
+      <Dialog open={showForm} onOpenChange={(open) => {
+        if (!open) {
+          setShowForm(false);
+          setEditing(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editing ? "Edit Permission" : "Create Permission"}
+            </DialogTitle>
+            <DialogDescription>
+              {editing
+                ? "Update permission details"
+                : "Define a new resource-action permission"}
+            </DialogDescription>
+          </DialogHeader>
+          <PermissionFormInner
+            permission={editing}
+            onClose={() => {
+              setShowForm(false);
+              setEditing(null);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Permission</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &ldquo;{deleteTarget?.resource}.{deleteTarget?.action}&rdquo;? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
-// ─── Permission Form Modal ─────────────────────────────
+// ─── Permission Form (inside Dialog) ─────────────────────
 
-function PermissionFormModal({
+function PermissionFormInner({
   permission,
   onClose,
 }: {
@@ -189,78 +278,56 @@ function PermissionFormModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">
-          {isEditing ? "Edit Permission" : "Create Permission"}
-        </h2>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-        {error && (
-          <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-600">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Resource
-            </label>
-            <input
-              type="text"
-              value={resource}
-              onChange={(e) => setResource(e.target.value)}
-              required
-              placeholder="e.g. users, roles"
-              className="w-full rounded-md border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Action
-            </label>
-            <input
-              type="text"
-              value={action}
-              onChange={(e) => setAction(e.target.value)}
-              required
-              placeholder="e.g. read, create, update, delete"
-              className="w-full rounded-md border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Description
-            </label>
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description"
-              className="w-full rounded-md border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={mutation.isPending}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {mutation.isPending ? "Saving..." : isEditing ? "Update" : "Create"}
-            </button>
-          </div>
-        </form>
+      <div className="space-y-2">
+        <Label htmlFor="perm-resource">Resource</Label>
+        <Input
+          id="perm-resource"
+          type="text"
+          value={resource}
+          onChange={(e) => setResource(e.target.value)}
+          required
+          placeholder="e.g. users, roles"
+        />
       </div>
-    </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="perm-action">Action</Label>
+        <Input
+          id="perm-action"
+          type="text"
+          value={action}
+          onChange={(e) => setAction(e.target.value)}
+          required
+          placeholder="e.g. read, create, update, delete"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="perm-desc">Description</Label>
+        <Input
+          id="perm-desc"
+          type="text"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Optional description"
+        />
+      </div>
+
+      <div className="flex justify-end gap-3 pt-2">
+        <Button type="button" variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={mutation.isPending}>
+          {mutation.isPending ? "Saving..." : isEditing ? "Update" : "Create"}
+        </Button>
+      </div>
+    </form>
   );
 }
