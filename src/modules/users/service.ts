@@ -15,15 +15,25 @@ export async function getUserById(id: string) {
 }
 
 export async function createUser(input: CreateUserInput) {
-  const exists = await userRepo.emailExists(input.email);
-  if (exists) throw new Error("Email already in use");
+  if (await userRepo.emailExists(input.email)) throw new Error("Email already in use");
+  if (await userRepo.phoneExists(input.phone)) throw new Error("Phone already in use");
+
+  if (!input.roleIds?.length) {
+    const customerRole = await userRepo.findRoleByName("Customer");
+    if (customerRole) {
+      input = { ...input, roleIds: [customerRole.id] };
+    }
+  }
+
   return userRepo.createUser(input);
 }
 
 export async function updateUser(id: string, input: UpdateUserInput) {
-  if (input.email) {
-    const exists = await userRepo.emailExists(input.email, id);
-    if (exists) throw new Error("Email already in use");
+  if (input.email && (await userRepo.emailExists(input.email, id))) {
+    throw new Error("Email already in use");
+  }
+  if (input.phone && (await userRepo.phoneExists(input.phone, id))) {
+    throw new Error("Phone already in use");
   }
   return userRepo.updateUser(id, input);
 }

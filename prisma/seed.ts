@@ -98,19 +98,34 @@ async function main() {
 
   console.log("  ✅ Viewer role created with read permissions");
 
+  // ─── 3b. Create Customer Role (default) ─────────────────────────
+const customerRole = await prisma.role.upsert({
+  where: { name: "Customer" },
+  update: {},
+  create: {
+    name: "Customer",
+    description: "Default customer role",
+  },
+});
+
+console.log("  ✅ Customer role created");
+
   // ─── 4. Create Admin User ───────────────────────────
   const hashedPassword = await hash("admin123", 12);
 
   const adminUser = await prisma.user.upsert({
-    where: { email: "admin@power8.dev" },
-    update: {},
-    create: {
-      email: "admin@power8.dev",
-      password: hashedPassword,
-      name: "System Admin",
-      isActive: true,
-    },
-  });
+  where: { email: "admin@power8.dev" },
+  update: {
+    phone: "+10000000001",
+  },
+  create: {
+    email: "admin@power8.dev",
+    phone: "+10000000001",
+    password: hashedPassword,
+    name: "System Admin",
+    isActive: true,
+  },
+});
 
   // Assign admin role
   await prisma.userRole.upsert({
@@ -130,16 +145,19 @@ async function main() {
   console.log("  ✅ Admin user created (admin@power8.dev / admin123)");
 
   // ─── 5. Create Demo Viewer User ─────────────────────
-  const viewerUser = await prisma.user.upsert({
-    where: { email: "viewer@power8.dev" },
-    update: {},
-    create: {
-      email: "viewer@power8.dev",
-      password: await hash("viewer123", 12),
-      name: "Demo Viewer",
-      isActive: true,
-    },
-  });
+const viewerUser = await prisma.user.upsert({
+  where: { email: "viewer@power8.dev" },
+  update: {
+    phone: "+10000000002",
+  },
+  create: {
+    email: "viewer@power8.dev",
+    phone: "+10000000002",
+    password: await hash("viewer123", 12),
+    name: "Demo Viewer",
+    isActive: true,
+  },
+});
 
   await prisma.userRole.upsert({
     where: {

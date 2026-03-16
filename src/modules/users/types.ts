@@ -4,6 +4,7 @@ export interface UserDto {
   id: string;
   email: string;
   name: string;
+  phone: string,
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -12,6 +13,7 @@ export interface UserDto {
 
 export interface CreateUserInput {
   email: string;
+  phone: string,
   password: string;
   name: string;
   roleIds?: string[];
@@ -19,6 +21,7 @@ export interface CreateUserInput {
 
 export interface UpdateUserInput {
   email?: string;
+  phone?: string,
   password?: string;
   name?: string;
   isActive?: boolean;
