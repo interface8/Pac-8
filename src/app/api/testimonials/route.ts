@@ -1,7 +1,7 @@
-import { NextResponse, NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { testimonialsService } from "@/modules/testimonials";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   const testimonials = await testimonialsService.listTestimonials();
   return NextResponse.json(testimonials);
 }
