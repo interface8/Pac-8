@@ -3,6 +3,7 @@ export interface TestimonialDto {
   description: string;
   createdAt: Date;
   updatedAt: Date;
+  rating: number;
 
   user: {
     id: string;
