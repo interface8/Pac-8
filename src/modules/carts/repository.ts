@@ -75,3 +75,43 @@ export async function upsertCartItem(
 
   return toCartDto(updatedCart!);
 }
+
+
+export async function updateCartItem(
+  itemId: string,
+  quantity: number,
+): Promise<CartDto | null> {
+  const item = await prisma.cartItem.findUnique({ where: { id: itemId } });
+  if (!item) return null;
+
+  await prisma.cartItem.update({
+    where: { id: itemId },
+    data: { quantity },
+  });
+
+  const cart = await prisma.cart.findUnique({
+    where: { id: item.cartId },
+    ...cartWithItems,
+  });
+
+  return cart ? toCartDto(cart) : null;
+}
+
+export async function deleteCartItem(
+  itemId: string,
+): Promise<CartDto | null> {
+  const item = await prisma.cartItem.findUnique({ where: { id: itemId } });
+  if (!item) return null;
+
+  const cartId = item.cartId;
+
+  await prisma.cartItem.delete({ where: { id: itemId } });
+
+  const cart = await prisma.cart.findUnique({
+    where: { id: cartId },
+    ...cartWithItems,
+  });
+
+  return cart ? toCartDto(cart) : null;
+}
+
