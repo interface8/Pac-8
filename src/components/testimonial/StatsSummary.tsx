@@ -20,7 +20,7 @@ export default function StatsSummary() {
       
       <div className="text-center py-14 rounded-3xl shadow-sm hover:shadow-xl transition-all duration-500 hover:-translate-y-1 border border-[#F05700]/10 bg-white"
           >
-        <div className="text-3xl sm:text-4xl font-semibold mb-6  lg:text-5xl tracking-widest text-orange-600">{loading ? "Loading..." : stats.averageRating?.toFixed(1)}</div>
+        <div className="text-3xl sm:text-4xl font-semibold mb-6  lg:text-5xl tracking-widest text-orange-600">{loading ? "Loading..." : (stats.averageRating?.toFixed(1) ?? 0)}</div>
         <div className="text-sm sm:text-base text-gray-500  font-normal lg:text-xl pt-6">Average Rating</div>
       </div>
 
