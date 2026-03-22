@@ -175,6 +175,183 @@ const viewerUser = await prisma.user.upsert({
 
   console.log("  ✅ Viewer user created (viewer@power8.dev / viewer123)");
 
+  // ─── 6. Create Companies ─────────────────────────────
+  const companiesDefs = [
+    {
+      name: "SolarMax Energy",
+      description: "Leading manufacturer of solar panels and inverters",
+      address: "12 Industrial Avenue, Lagos",
+      contactNumber: "+2348012345678",
+    },
+    {
+      name: "PowerGrid Solutions",
+      description: "Specialist in batteries and energy storage systems",
+      address: "45 Tech Park Road, Abuja",
+      contactNumber: "+2348023456789",
+    },
+    {
+      name: "GreenVolt Industries",
+      description: "Renewable energy equipment supplier",
+      address: "78 Commerce Street, Port Harcourt",
+      contactNumber: "+2348034567890",
+    },
+  ];
+
+  const createdCompanies = [];
+  for (const company of companiesDefs) {
+    const created = await prisma.company.create({ data: company });
+    createdCompanies.push(created);
+  }
+
+  console.log(`  ✅ ${createdCompanies.length} companies created`);
+
+  // ─── 7. Create Product Categories ────────────────────
+  const categoriesDefs = [
+    { name: "Solar Panels", description: "Photovoltaic solar panels", sort: 1 },
+    { name: "Inverters", description: "Power inverters for solar systems", sort: 2 },
+    { name: "Batteries", description: "Energy storage batteries", sort: 3 },
+    { name: "Charge Controllers", description: "Solar charge controllers", sort: 4 },
+    { name: "Accessories", description: "Cables, connectors, and mounting equipment", sort: 5 },
+  ];
+
+  const createdCategories = [];
+  for (const category of categoriesDefs) {
+    const created = await prisma.productCategory.create({ data: category });
+    createdCategories.push(created);
+  }
+
+  console.log(`  ✅ ${createdCategories.length} product categories created`);
+
+  // ─── 8. Create Products ──────────────────────────────
+  const productsDefs = [
+    {
+      name: "250W Mono Solar Panel",
+      description: "High efficiency monocrystalline solar panel, ideal for residential use",
+      categoryId: createdCategories[0].id,
+      companyId: createdCompanies[0].id,
+      price: 45000,
+      warranty: 25,
+      capacity: 250,
+      stockQuantity: 50,
+    },
+    {
+      name: "400W Mono Solar Panel",
+      description: "Premium monocrystalline panel for commercial installations",
+      categoryId: createdCategories[0].id,
+      companyId: createdCompanies[0].id,
+      price: 72000,
+      warranty: 25,
+      capacity: 400,
+      stockQuantity: 30,
+    },
+    {
+      name: "550W Bifacial Solar Panel",
+      description: "Dual-sided panel capturing reflected light for maximum output",
+      categoryId: createdCategories[0].id,
+      companyId: createdCompanies[2].id,
+      price: 95000,
+      warranty: 30,
+      capacity: 550,
+      stockQuantity: 15,
+    },
+    {
+      name: "3.5KVA Hybrid Inverter",
+      description: "Hybrid inverter with MPPT charge controller built-in",
+      categoryId: createdCategories[1].id,
+      companyId: createdCompanies[0].id,
+      price: 185000,
+      warranty: 24,
+      capacity: 3500,
+      stockQuantity: 20,
+    },
+    {
+      name: "5KVA Pure Sine Wave Inverter",
+      description: "High capacity inverter for homes and small offices",
+      categoryId: createdCategories[1].id,
+      companyId: createdCompanies[1].id,
+      price: 250000,
+      warranty: 24,
+      capacity: 5000,
+      stockQuantity: 12,
+    },
+    {
+      name: "200Ah Lithium Battery",
+      description: "Deep cycle lithium iron phosphate battery, 5000+ cycles",
+      categoryId: createdCategories[2].id,
+      companyId: createdCompanies[1].id,
+      price: 320000,
+      warranty: 36,
+      capacity: 200,
+      stockQuantity: 25,
+    },
+    {
+      name: "100Ah Gel Battery",
+      description: "Maintenance-free gel battery for solar systems",
+      categoryId: createdCategories[2].id,
+      companyId: createdCompanies[1].id,
+      price: 85000,
+      warranty: 12,
+      capacity: 100,
+      stockQuantity: 40,
+    },
+    {
+      name: "60A MPPT Charge Controller",
+      description: "Maximum power point tracking controller for optimal charging",
+      categoryId: createdCategories[3].id,
+      companyId: createdCompanies[2].id,
+      price: 45000,
+      warranty: 24,
+      capacity: 60,
+      stockQuantity: 35,
+    },
+    {
+      name: "30A PWM Charge Controller",
+      description: "Budget-friendly pulse width modulation controller",
+      categoryId: createdCategories[3].id,
+      companyId: createdCompanies[2].id,
+      price: 12000,
+      warranty: 12,
+      capacity: 30,
+      stockQuantity: 60,
+    },
+    {
+      name: "Solar Cable 6mm (100m)",
+      description: "UV resistant solar cable, 100 meter roll",
+      categoryId: createdCategories[4].id,
+      companyId: createdCompanies[2].id,
+      price: 25000,
+      warranty: 10,
+      capacity: 0,
+      stockQuantity: 100,
+    },
+    {
+      name: "Panel Mounting Kit",
+      description: "Complete roof mounting kit for 4 solar panels",
+      categoryId: createdCategories[4].id,
+      companyId: createdCompanies[0].id,
+      price: 18000,
+      warranty: 15,
+      capacity: 0,
+      stockQuantity: 45,
+    },
+    {
+      name: "Out of Stock Panel",
+      description: "This product is intentionally out of stock for testing",
+      categoryId: createdCategories[0].id,
+      companyId: createdCompanies[0].id,
+      price: 50000,
+      warranty: 25,
+      capacity: 300,
+      stockQuantity: 0,
+    },
+  ];
+
+  for (const product of productsDefs) {
+    await prisma.product.create({ data: product });
+  }
+
+  console.log(`  ✅ ${productsDefs.length} products created`);
+
   console.log("\n🎉 Seed completed successfully!");
 }
 
