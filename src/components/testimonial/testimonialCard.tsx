@@ -66,7 +66,7 @@ export default function TestimonialCard({
         </div>
         <div className="text-lg font-bold text-green-600 flex flex-row items-center justify-between w-full">
           <span className="font-medium text-gray-400">Annual Savings:</span>
-          <div>{savings}</div>
+          <div>{savings}hello</div>
         </div>
       </CardFooter>
     </Card>

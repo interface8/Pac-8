@@ -10,13 +10,13 @@ export default function TestimonialContent() {
   const { testimonials, loading, error } = useTestimonials();
 
   return (
-    <div className="min-h-screen w-full bg-[#FFFAEC]">
+    <div className="min-h-screen w-full bg-[#FFFAEC] px-24">
       <div className=" w-[97%] mx-auto pt-24  py-8">
         <Link href="/" className="flex items-center space-x-4 pl-8">
           <span>
             <LucideArrowLeft size={15} />
           </span>
-          <p className="text-gray-700 font-xl text-sm md:text-xl lg:font-semibold">
+          <p className="text-gray-800 font-xl text-sm md:text-xl lg:font-semibold">
             Back to Home
           </p>
         </Link>
@@ -24,14 +24,16 @@ export default function TestimonialContent() {
       <section className="py-4 px-4 ">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-4xl md:text-8xl font-medium text-gray-900 mb-8">
+            <h2 className="text-4xl md:text-7xl font-medium text-gray-900 mb-8 tracking-wider">
               Stories from Our
-              <span className="block text-orange-600">Happy Customers</span>
+              <div className="h-18 overflow-hidden">
+              <span className="block text-orange-600 leading-none">Happy Customers</span>
+              </div>
             </h2>
-            <p className="text-xl md:text-2xl text-gray-800 max-w-6xl mx-auto">
-              Real experiences from real people who&apos;ve
-              <br className="block sm:hidden" />
-              transformed their lives with solar energy
+            <p className="text-xl md:text-2xl text-gray-700 max-w-6xl mx-auto tracking-wide">
+              Real experiences from real people who&apos;ve{' '}
+                <br className="block sm:hidden" />
+                transformed their lives with solar energy
             </p>
           </div>
 
