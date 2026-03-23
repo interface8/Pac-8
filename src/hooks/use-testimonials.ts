@@ -27,7 +27,7 @@ export function useTestimonials() {
   // Fetch testimonials on mount
   useEffect(() => {
     refetch();
-  }, []);
+  }, [refetch]);
 
   return {
     testimonials: data ?? [],
@@ -54,7 +54,7 @@ export function useTestimonialStats() {
   // Fetch testimonial stats on mount
   useEffect(() => {
     refetch();
-  }, []);
+  }, [refetch]);
 
   return {
     stats: data ?? { totalTestimonials: 0, averageRating: 0 },

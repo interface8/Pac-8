@@ -69,20 +69,21 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers>
-          {children}
-          <ToastContainer
-            position="top-right"
-            autoClose={2000}
-            hideProgressBar={false}
-            newestOnTop
-            closeOnClick
-            pauseOnHover
-            theme="light"
-          />
-        </Providers>
-        <QueryProvider>{children}</QueryProvider>
-        <Toaster />
+        <QueryProvider>
+          <Providers>
+            {children}
+            <ToastContainer
+              position="top-right"
+              autoClose={2000}
+              hideProgressBar={false}
+              newestOnTop
+              closeOnClick
+              pauseOnHover
+              theme="light"
+            />
+          </Providers>
+          <Toaster />
+        </QueryProvider>
       </body>
     </html>
   );
