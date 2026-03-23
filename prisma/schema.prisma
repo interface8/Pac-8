@@ -8,26 +8,65 @@ datasource db {
 
 // ─── Models ──────────────────────────────────────────────
 
+model Company {
+  id            String     @id @default(cuid())
+  name          String
+  description   String? 
+  address       String
+  contactNumber String
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+   products     Product[]
+
+  @@map("company")
+}
+
+model ProductCategory {
+  id            String     @id @default(cuid())
+  name          String
+  description   String? 
+  sort          Int
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+   products     Product[]
+
+  @@map("product_category")
+}
+
 model Product {
   id            String     @id @default(cuid())
   name          String
   description   String?
+  categoryId    String
+  category      ProductCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   price         Decimal    @db.Decimal(10, 2)
+  warranty      Int
+  capacity      Int
   imageUrl      String?
   stockQuantity Int        @default(0)
   isActive      Boolean    @default(true)
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
   cartItems     CartItem[]
+
+  @@map("products")
 }
 
 model Cart {
   id        String     @id @default(cuid())
-  userId    String     @unique
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items     CartItem[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+   items     CartItem[]
+
+  @@map("carts")
 }
 
 model CartItem {
@@ -41,6 +80,7 @@ model CartItem {
   updatedAt DateTime @updatedAt
 
   @@unique([cartId, productId])
+  @@map("cart_items")
 }
 
 model User {
