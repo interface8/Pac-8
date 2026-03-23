@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/carousel";
 import { TrendingUp, Calculator, ShoppingBag } from "lucide-react";
 import Autoplay from "embla-carousel-autoplay";
+import Link from "next/link";
 import Image from "next/image";
 
 const slides = [
@@ -60,10 +61,13 @@ export default function Hero() {
               <span> Calculate Solar Needs </span>
             </button>
 
-            <button className="flex items-center justify-center gap-2 w-full sm:w-auto border-2 border-orange-300 text-gray-700 px-6 py-3 rounded-lg font-medium bg-white hover:bg-orange-50 transition">
+            <Link
+              href="/products"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto border-2 border-orange-300 text-gray-700 px-6 py-3 rounded-lg font-medium bg-white hover:bg-orange-50 transition"
+            >
               <ShoppingBag size={16} />
               <span>Browse Products</span>
-            </button>
+            </Link>
           </div>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start sm:justify-center gap-4 sm:gap-8 pt-2  pr-4 pb-4">
@@ -91,7 +95,6 @@ export default function Hero() {
           </div>
         </div>
 
-        
         <div className="relative w-full">
           <Carousel
             plugins={[
@@ -113,7 +116,6 @@ export default function Hero() {
                       className="object-cover"
                     />
 
-                  
                     <div className="absolute bottom-6 sm:bottom-8 md:bottom:14 left-4 sm:left-6 md:left-8 text-white max-w-[80%]">
                       <h3 className="text-lg sm:text-xl md:text-4xl font-semibold leading-tight">
                         {slide.title}
@@ -128,12 +130,10 @@ export default function Hero() {
               ))}
             </CarouselContent>
 
-            
             <CarouselPrevious className="left-3 md:left-6 bg-white shadow-md" />
             <CarouselNext className="right-3 md:right-6 bg-white shadow-md" />
           </Carousel>
 
-          
           <div className="hidden lg:flex absolute bottom-6 -left-7 translate-y-1/2 bg-white rounded-2xl shadow-lg p-6 items-center gap-4">
             <div className="bg-green-500 text-white p-3 rounded-xl">
               <TrendingUp />
