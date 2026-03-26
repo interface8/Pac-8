@@ -110,7 +110,7 @@ export default function LoginPage() {
       {/* Demo credentials */}
       <div className="mt-6 md:mt-8 p-3 md:p-4 bg-blue-50 rounded-lg">
         <p className="text-xs font-medium text-blue-800 mb-2">Demo Credentials:</p>
-        <p className="text-xs text-blue-700">Admin: admin@power8.com / admin123</p>
+        <p className="text-xs text-blue-700">Admin: admin@pac8.com / admin123</p>
         <p className="text-xs text-blue-700">Customer: any email / any password</p>
       </div>
 

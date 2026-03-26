@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
-const AUTH_COOKIE_NAME = "power8_token";
+const AUTH_COOKIE_NAME = "pac8_token";
 const PUBLIC_ROUTES = ["/login", "/register", "/forgot-password"];
 const PROTECTED_ROUTE_PREFIX = "/dashboard";
 

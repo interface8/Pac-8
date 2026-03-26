@@ -27,7 +27,7 @@ export function DashboardSidebar() {
     <aside className="flex w-64 flex-col border-r bg-sidebar text-sidebar-foreground">
       <div className="flex h-16 items-center border-b border-sidebar-border px-6">
         <Link href="/dashboard" className="text-xl font-bold text-sidebar-primary">
-          Power8
+          Pac8
         </Link>
       </div>
 

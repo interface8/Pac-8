@@ -15,7 +15,7 @@
 // });
 
 // export const metadata: Metadata = {
-//   title: "Power8 — SaaS Starter",
+//   title: "pac8 — SaaS Starter",
 //   description: "Production-grade Next.js 14 SaaS starter template",
 // };
 
@@ -55,7 +55,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Power8 — SaaS Starter",
+  title: "pac8 — SaaS Starter",
   description: "Production-grade Next.js 14 SaaS starter template",
 };
 

@@ -1,5 +1,5 @@
 // ─── Auth constants ─────────────────────────────────────
-export const AUTH_COOKIE_NAME = "power8_token";
+export const AUTH_COOKIE_NAME = "pac8_token";
 
 export const AUTH_COOKIE_OPTIONS = {
   httpOnly: true,

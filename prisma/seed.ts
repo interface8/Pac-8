@@ -114,12 +114,12 @@ console.log("  ✅ Customer role created");
   const hashedPassword = await hash("admin123", 12);
 
   const adminUser = await prisma.user.upsert({
-  where: { email: "admin@power8.dev" },
+  where: { email: "admin@pac8.dev" },
   update: {
     phone: "+10000000001",
   },
   create: {
-    email: "admin@power8.dev",
+    email: "admin@pac8.dev",
     phone: "+10000000001",
     password: hashedPassword,
     name: "System Admin",
@@ -142,16 +142,16 @@ console.log("  ✅ Customer role created");
     },
   });
 
-  console.log("  ✅ Admin user created (admin@power8.dev / admin123)");
+  console.log("  ✅ Admin user created (admin@pac8.dev / admin123)");
 
   // ─── 5. Create Demo Viewer User ─────────────────────
 const viewerUser = await prisma.user.upsert({
-  where: { email: "viewer@power8.dev" },
+  where: { email: "viewer@pac8.dev" },
   update: {
     phone: "+10000000002",
   },
   create: {
-    email: "viewer@power8.dev",
+    email: "viewer@pac8.dev",
     phone: "+10000000002",
     password: await hash("viewer123", 12),
     name: "Demo Viewer",
@@ -173,7 +173,7 @@ const viewerUser = await prisma.user.upsert({
     },
   });
 
-  console.log("  ✅ Viewer user created (viewer@power8.dev / viewer123)");
+  console.log("  ✅ Viewer user created (viewer@pac8.dev / viewer123)");
 
   // ─── 6. Create Companies ─────────────────────────────
   const companiesDefs = [
