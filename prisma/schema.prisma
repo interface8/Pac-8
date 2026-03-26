@@ -95,7 +95,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   roles UserRole[]
-  testimonials Testimonial[]
+ 
 
   @@map("users")
 }
@@ -146,19 +146,5 @@ model RolePermission {
   @@map("role_permissions")
 }
 
-model Testimonial {
-  id          String   @id @default(cuid())
-  title        String
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  rating  Int?
-  imageUrl      String?
 
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("testimonials")
-}
 
