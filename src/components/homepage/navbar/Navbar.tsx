@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LogIn, UserPlus, Sun, Star } from "lucide-react";
+import { LogIn, UserPlus, Sun } from "lucide-react";
 
 export default function Navbar() {
   return (
@@ -19,13 +19,7 @@ export default function Navbar() {
 
         {/* Right Side (Desktop) */}
         <div className="hidden md:flex items-center gap-4">
-          <Link
-            href="/testimonial"
-            className="flex items-center gap-1 px-4 py-2 text-sm font-medium border-2 border-orange-400 text-orange-600 rounded-lg hover:bg-orange-50 transition"
-          >
-            <Star size={14} />
-            Testimonials
-          </Link>
+          
 
           <Link
             href="/login"
@@ -46,12 +40,7 @@ export default function Navbar() {
 
         {/* Mobile Buttons */}
         <div className="flex md:hidden items-center gap-2">
-          <Link
-            href="/testimonial"
-            className="border-2 border-orange-400 text-orange-600 p-2 rounded-md"
-          >
-            <Star size={18} />
-          </Link>
+     
 
           <button className="border p-2 rounded-md">
             <LogIn size={18} />

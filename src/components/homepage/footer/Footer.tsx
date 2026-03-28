@@ -27,15 +27,10 @@ export default function Footer() {
             Products
           </Link>
 
-          <Link
-            href="/testimonials"
-            className="hover:text-orange-400 transition"
-          >
-            Testimonials
-          </Link>
+       
         </div>
 
-        <div className="w-full border-t border-gray-700 mt-6 pt-6">
+        <div className="w-full border-t border-gray-7600 mt- pt-6">
           <p className="text-gray-400 text-sm">
             © 2026 Power - 8 Platform. All rights reserved.
           </p>
