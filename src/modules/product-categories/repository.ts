@@ -1,18 +1,14 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import type {
   ProductCategoryDto,
   CreateProductCategoryInput,
   UpdateProductCategoryInput,
 } from "./types";
 
-function toCategoryDto(category: {
-  id: string;
-  name: string;
-  description: string | null;
-  sort: number;
-  createdAt: Date;
-  updatedAt: Date;
-}): ProductCategoryDto {
+type ProductCategoryRecord = Prisma.ProductCategoryGetPayload<object>;
+
+function toCategoryDto(category: ProductCategoryRecord): ProductCategoryDto {
   return {
     id: category.id,
     name: category.name,

@@ -2,25 +2,49 @@ export interface CartItemDto {
   id: string;
   productId: string;
   productName: string;
+  productSlug: string;
   productImage: string | null;
-  price: number;
   quantity: number;
-  subtotal: number;
+  customPrint: boolean;
+  printText: string | null;
+  unitPrice: number;
+  totalPrice: number;
+  savedForLater: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface CartDto {
-  cartId: string;
-  userId: string;
+  id: string;
+  userId: string | null;
+  sessionId: string | null;
   items: CartItemDto[];
-  total: number;
+  subtotal: number; // Calculated
+  totalItems: number; // Calculated
+  savedForLater: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface AddToCartInput {
+  userId?: string;
+  sessionId?: string;
   productId: string;
   quantity: number;
+  customPrint?: boolean;
+  printText?: string;
 }
 
 export interface UpdateCartItemInput {
-  quantity: number;
+  quantity?: number;
+  customPrint?: boolean;
+  printText?: string;
+  savedForLater?: boolean;
 }
+
+export interface MergeCartInput {
+  userId: string;
+  sessionId: string;
+}
+
 

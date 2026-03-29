@@ -36,7 +36,7 @@ export async function PATCH(
     if (!parsed.success) {
       const firstError =
         Object.values(parsed.error.flatten().fieldErrors).flat()[0] ?? "Validation failed";
-      return Response.json({ message: firstError }, { status: 400 });
+      return errorResponse(firstError, 400);
     }
 
     const category = await categoryService.updateCategory(id, parsed.data);
