@@ -158,7 +158,7 @@ export default function ProductDetailPage({
     <>
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-32 md:pt-28 pb-16 flex-1 w-full">
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-8">
+        <nav className="inline-flex items-center gap-2 text-sm text-muted-foreground mb-8 bg-muted/60 px-4 py-2 rounded-full">
           <Link href="/" className="hover:text-primary transition">Home</Link>
           <ChevronRight size={14} />
           <Link href="/products" className="hover:text-primary transition">Products</Link>
@@ -422,15 +422,15 @@ export default function ProductDetailPage({
 
         {/* ─── Product Details Tabs ──────────────────────────── */}
         <section className="mt-16">
-          <div className="flex border-b border-border gap-0">
+          <div className="flex gap-2 mb-6">
             {(["description", "specs", "shipping"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors capitalize ${
+                className={`px-5 py-2.5 text-sm font-medium rounded-full transition-all capitalize ${
                   activeTab === tab
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                 }`}
               >
                 {tab === "specs" ? "Specifications" : tab}
@@ -438,7 +438,7 @@ export default function ProductDetailPage({
             ))}
           </div>
 
-          <div className="bg-card border border-t-0 border-border rounded-b-2xl p-6 sm:p-8">
+          <div className="bg-card border border-border rounded-2xl p-6 sm:p-8">
             {activeTab === "description" && (
               <div className="space-y-4">
                 {product.description ? (
@@ -528,13 +528,14 @@ export default function ProductDetailPage({
         {/* ─── Related Products ─────────────────────────────── */}
         {relatedProducts.filter((p) => p.slug !== product.slug).length > 0 && (
           <section className="mt-16">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-8">
               <div>
                 <h2 className="text-xl font-bold text-foreground">More in {product.categoryName}</h2>
                 <p className="text-sm text-muted-foreground mt-1">Explore similar packaging products</p>
               </div>
-              <Link href="/products" className="text-sm font-medium text-primary hover:text-primary/80 transition">
+              <Link href="/products" className="text-sm font-medium text-primary hover:text-primary/80 transition flex items-center gap-1">
                 View All
+                <ChevronRight size={14} />
               </Link>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">

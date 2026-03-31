@@ -37,42 +37,35 @@ function ProductGridCard({ product }: ProductGridCardProps) {
 
   return (
     <Link href={`/products/${product.slug}`} className="group block">
-      <div className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-lg hover:border-primary/20 transition-all duration-300">
+      <div className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl hover:shadow-primary/5 hover:border-primary/30 transition-all duration-300">
         {/* Image */}
         <div className="relative aspect-square overflow-hidden bg-muted">
           <Image
             src={mainImage}
             alt={product.name}
             fill
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            className="object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
           />
-          {/* Quick action buttons */}
-          <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={handleAddToCart}
-              className="w-9 h-9 rounded-full bg-card shadow-md flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
-              title="Add to cart"
-            >
-              <ShoppingCart size={16} />
-            </button>
-            <button
-              onClick={(e) => e.preventDefault()}
-              className="w-9 h-9 rounded-full bg-card shadow-md flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors"
-              title="Add to wishlist"
-            >
-              <Heart size={16} />
-            </button>
-          </div>
+          {/* Hover overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          {/* Quick wishlist */}
+          <button
+            onClick={(e) => e.preventDefault()}
+            className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/80 backdrop-blur-sm shadow-sm flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
+            title="Add to wishlist"
+          >
+            <Heart size={16} />
+          </button>
           {/* Badges */}
           <div className="absolute top-3 left-3 flex flex-col gap-1.5">
             {product.isFeatured && (
-              <span className="bg-primary text-primary-foreground text-[10px] font-semibold px-2.5 py-1 rounded-full">
+              <span className="bg-primary/90 backdrop-blur-sm text-primary-foreground text-[10px] font-semibold px-2.5 py-1 rounded-full shadow-sm">
                 Featured
               </span>
             )}
             {product.comparePrice && product.comparePrice > product.price && (
-              <span className="bg-red-500 text-white text-[10px] font-semibold px-2.5 py-1 rounded-full">
+              <span className="bg-red-500/90 backdrop-blur-sm text-white text-[10px] font-semibold px-2.5 py-1 rounded-full shadow-sm">
                 -
                 {Math.round(
                   ((product.comparePrice - product.price) /
@@ -83,7 +76,7 @@ function ProductGridCard({ product }: ProductGridCardProps) {
               </span>
             )}
             {product.isLowBudget && (
-              <span className="bg-green-600 text-white text-[10px] font-semibold px-2.5 py-1 rounded-full">
+              <span className="bg-green-600/90 backdrop-blur-sm text-white text-[10px] font-semibold px-2.5 py-1 rounded-full shadow-sm">
                 Budget
               </span>
             )}
@@ -111,17 +104,27 @@ function ProductGridCard({ product }: ProductGridCardProps) {
               </span>
             )}
           </div>
-          {/* Stock indicator */}
-          <div className="mt-2">
+          {/* Stock + Add to Cart */}
+          <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
             {product.quantity > 0 ? (
-              <span className="text-xs text-green-600 font-medium">
+              <span className="text-xs text-green-600 font-medium flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
                 In Stock
               </span>
             ) : (
-              <span className="text-xs text-red-500 font-medium">
+              <span className="text-xs text-red-500 font-medium flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
                 Out of Stock
               </span>
             )}
+            <button
+              onClick={handleAddToCart}
+              className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+              title="Add to cart"
+            >
+              <ShoppingCart size={14} />
+              Add to Cart
+            </button>
           </div>
         </div>
       </div>
@@ -154,14 +157,14 @@ function ProductListCard({ product }: ProductGridCardProps) {
 
   return (
     <Link href={`/products/${product.slug}`} className="group block">
-      <div className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-lg hover:border-primary/20 transition-all duration-300 flex">
+      <div className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl hover:shadow-primary/5 hover:border-primary/30 transition-all duration-300 flex">
         {/* Image */}
         <div className="relative w-40 sm:w-52 shrink-0 overflow-hidden bg-muted">
           <Image
             src={mainImage}
             alt={product.name}
             fill
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            className="object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
             sizes="208px"
           />
           {/* Badges */}

@@ -594,7 +594,7 @@ async function main() {
     {
       title: "Custom Packaging, Your Way",
       description: "Design and order branded cups, boxes, bags, and bottles — from a single unit to thousands.",
-      imageUrl: "/images/hero/hero-packaging-1.jpg",
+      imageUrl: "https://media.istockphoto.com/id/1390050937/photo/kraft-paper-utensils-on-green-background-paper-cups-and-containers-wooden-cutlery-street-food.webp?a=1&b=1&s=612x612&w=0&k=20&c=W3QdgPg5a7usPfUfjqFJqq9BuQ3NekW95I64y2-d5oo=",
       link: "/products",
       startDate: now,
       endDate: farFuture,
@@ -605,7 +605,7 @@ async function main() {
     {
       title: "Bulk Orders, Better Prices",
       description: "Order 500+ units and save up to 25%. Volume discounts automatically applied at checkout.",
-      imageUrl: "/images/hero/hero-bulk.jpg",
+      imageUrl: "https://images.unsplash.com/photo-1766040923580-16ad32fae8b4?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fGJ1bGslMjBvcmRlciUyQyUyMGJldHRlciUyMHByaWNlc3xlbnwwfHwwfHx8MA%3D%3D",
       link: "/products?isFeatured=true",
       startDate: now,
       endDate: farFuture,
@@ -616,7 +616,7 @@ async function main() {
     {
       title: "From Concept to Delivery",
       description: "Use our real-time design editor, preview your packaging instantly, and we handle the rest.",
-      imageUrl: "/images/hero/hero-delivery.jpg",
+      imageUrl: "https://images.unsplash.com/photo-1659353739687-6e37ee1c2ddf?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MzV8fHBhY2thZ2luZyUyMGVjY29tZXJjZSUyMGFwcCUyMGhlcm8lMjBwaWN0dXJlfGVufDB8fDB8fHww",
       link: "/products",
       startDate: now,
       endDate: farFuture,

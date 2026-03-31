@@ -2,7 +2,8 @@
 
 import { useState, useMemo, useCallback, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { SlidersHorizontal, X, LayoutGrid, List, ArrowUpDown } from "lucide-react";
+import Link from "next/link";
+import { SlidersHorizontal, X, LayoutGrid, List, ArrowUpDown, ChevronRight } from "lucide-react";
 import FilterSidebar from "@/components/products/FilterSidebar";
 import ProductGrid from "@/components/products/ProductGrid";
 import { useProducts } from "@/hooks/use-products";
@@ -143,15 +144,26 @@ function ProductsContent() {
   return (
     <>
       {/* Page Header */}
-      <div className="bg-gradient-to-r from-primary to-primary/80 pt-32 md:pt-28 pb-10 px-4 sm:px-6">
-        <div className="max-w-[1400px] mx-auto">
-          <h1 className="text-3xl md:text-4xl font-bold text-primary-foreground">
+      <div className="relative bg-gradient-to-br from-primary via-primary/90 to-primary/70 pt-32 md:pt-28 pb-14 px-4 sm:px-6 overflow-hidden">
+        {/* Decorative elements */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4" />
+          <div className="absolute top-1/2 right-1/4 w-32 h-32 bg-white/[0.03] rounded-full" />
+        </div>
+        <div className="max-w-[1400px] mx-auto relative">
+          <nav className="flex items-center gap-2 text-sm text-primary-foreground/50 mb-4">
+            <Link href="/" className="hover:text-primary-foreground transition">Home</Link>
+            <ChevronRight size={14} />
+            <span className="text-primary-foreground font-medium">Products</span>
+          </nav>
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-primary-foreground tracking-tight">
             {selectedCategoryName ?? "All Products"}
           </h1>
-          <p className="text-primary-foreground/70 mt-2 text-sm md:text-base">
+          <p className="text-primary-foreground/60 mt-3 text-sm md:text-base max-w-lg">
             {selectedCategoryName
               ? `Showing products in ${selectedCategoryName}`
-              : "Browse our complete collection of custom packaging"}
+              : "Browse our premium collection of custom packaging solutions"}
           </p>
         </div>
       </div>
