@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { SlidersHorizontal, X } from "lucide-react";
-import SiteHeader from "@/components/layout/SiteHeader";
+import Header from "@/components/shared/Header";
 import FilterSidebar from "@/components/products/FilterSidebar";
 import ProductGrid from "@/components/products/ProductGrid";
 import { useProducts } from "@/hooks/use-products";
@@ -62,8 +62,8 @@ export default function ProductsPage() {
     (sidebarSearch ? 1 : 0);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <SiteHeader />
+    <div className="min-h-screen bg-background">
+      <Header />
 
       {/* Page Header */}
       <div className="bg-gradient-to-r from-purple-600 to-purple-800 pt-32 md:pt-28 pb-10 px-4 sm:px-6">

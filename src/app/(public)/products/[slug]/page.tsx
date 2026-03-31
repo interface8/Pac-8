@@ -16,7 +16,7 @@ import {
   Star,
   Check,
 } from "lucide-react";
-import SiteHeader from "@/components/layout/SiteHeader";
+import Header from "@/components/shared/Header";
 import { useProduct, useFeaturedProducts } from "@/hooks/use-products";
 import { ProductGridCard } from "@/components/products/ProductGrid";
 import { useDispatch } from "react-redux";
@@ -38,8 +38,8 @@ export default function ProductDetailPage({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <SiteHeader />
+      <div className="min-h-screen bg-background">
+        <Header />
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-32 md:pt-28 pb-12">
           <div className="grid lg:grid-cols-2 gap-10">
             {/* Image skeleton */}
@@ -70,8 +70,8 @@ export default function ProductDetailPage({
 
   if (error || !product) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <SiteHeader />
+      <div className="min-h-screen bg-background">
+        <Header />
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-32 md:pt-28 pb-12">
           <div className="text-center py-20">
             <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gray-100 flex items-center justify-center">
@@ -128,8 +128,8 @@ export default function ProductDetailPage({
       : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <SiteHeader />
+    <div className="min-h-screen bg-background">
+      <Header />
 
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-32 md:pt-28 pb-16">
         {/* Breadcrumb */}

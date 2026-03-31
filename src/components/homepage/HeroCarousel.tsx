@@ -2,23 +2,33 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
+import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 
 const slides = [
   {
-    image: "/images/power-1.jpg",
-    title: "Premium Solar Solutions",
-    tag: "Up to 30% off this season",
+    image: "/images/hero-packaging-1.jpg",
+    title: "Custom Packaging, Your Way",
+    subtitle:
+      "Design branded cups, boxes, bags & more with our real-time editor.",
+    tag: "Start Customizing Today",
+    cta: { label: "Start Customizing", href: "/products" },
   },
   {
-    image: "/images/power-2.jpg",
-    title: "Power Your Home with Clean Energy",
-    tag: "Free installation on orders above ₦500,000",
+    image: "/images/hero-packaging-2.jpg",
+    title: "Bulk Orders, Better Prices",
+    subtitle:
+      "Get volume discounts on 100+ units. Perfect for events & businesses.",
+    tag: "Up to 40% off bulk orders",
+    cta: { label: "Shop Products", href: "/products" },
   },
   {
-    image: "/images/power-7.jpg",
-    title: "Top Quality Inverters & Batteries",
-    tag: "Trusted brands, unbeatable prices",
+    image: "/images/hero-packaging-3.jpg",
+    title: "From Concept to Delivery",
+    subtitle:
+      "Browse, customize, and order — we handle printing and shipping.",
+    tag: "Fast turnaround guaranteed",
+    cta: { label: "Browse Catalog", href: "/products" },
   },
 ];
 
@@ -40,7 +50,7 @@ export default function HeroCarousel() {
   }, [next]);
 
   return (
-    <div className="relative w-full aspect-[16/7] rounded-2xl overflow-hidden group">
+    <div className="relative w-full aspect-[16/7] min-h-[320px] md:min-h-[400px] rounded-2xl overflow-hidden group">
       {/* Slides */}
       {slides.map((slide, index) => (
         <div
@@ -57,16 +67,26 @@ export default function HeroCarousel() {
             priority={index === 0}
           />
           {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
 
           {/* Slide content */}
-          <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10">
-            <span className="inline-block bg-purple-600 text-white text-xs font-medium px-3 py-1 rounded-full mb-3">
+          <div className="absolute inset-0 flex flex-col justify-center p-6 md:p-12 max-w-2xl">
+            <span className="inline-block w-fit bg-primary text-primary-foreground text-xs font-semibold px-3 py-1.5 rounded-full mb-4">
               {slide.tag}
             </span>
-            <h2 className="text-2xl md:text-4xl font-bold text-white leading-tight">
+            <h2 className="text-2xl md:text-5xl font-bold text-white leading-tight mb-3">
               {slide.title}
             </h2>
+            <p className="text-sm md:text-lg text-white/80 mb-6 max-w-lg">
+              {slide.subtitle}
+            </p>
+            <Link
+              href={slide.cta.href}
+              className="inline-flex items-center gap-2 w-fit bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-xl text-sm font-semibold transition-colors"
+            >
+              {slide.cta.label}
+              <ArrowRight size={16} />
+            </Link>
           </div>
         </div>
       ))}
@@ -88,15 +108,15 @@ export default function HeroCarousel() {
       </button>
 
       {/* Dot pagination */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
         {slides.map((_, index) => (
           <button
             key={index}
             onClick={() => setCurrent(index)}
-            className={`w-2.5 h-2.5 rounded-full transition-all ${
+            className={`h-2.5 rounded-full transition-all duration-300 ${
               index === current
-                ? "bg-white w-7"
-                : "bg-white/50 hover:bg-white/70"
+                ? "bg-white w-8"
+                : "bg-white/50 w-2.5 hover:bg-white/70"
             }`}
             aria-label={`Go to slide ${index + 1}`}
           />
