@@ -514,20 +514,37 @@ async function main() {
   console.log(`  ✅ ${productDefs.length} products created`);
 
   // ─── 6b. Product Images ─────────────────────────────
-  const allProducts = await prisma.product.findMany({ orderBy: { createdAt: "asc" } });
-  const existingImages = await prisma.productImage.findMany({ select: { productId: true } });
-  const productsWithImages = new Set(existingImages.map((img) => img.productId));
+  // Map each product (by creation order) to its actual image file in /public/images/
+  const imageFileNames = [
+    "1.jpeg",   // 1  Custom Branded Paper Cup (8oz)
+    "2.png",    // 2  Double Wall Insulated Cup (12oz)
+    "3.webp",   // 3  Plastic Smoothie Cup with Dome Lid (16oz)
+    "4.jpg",    // 4  Mailer Box (Small)
+    "5.webp",   // 5  Rigid Gift Box (Medium)
+    "6.jpg",    // 6  Pizza Box (12-inch)
+    "7.jpg",    // 7  Kraft Paper Bag (Medium)
+    "8.jpg",    // 8  Non-Woven Tote Bag (Branded)
+    "9.jpg",    // 9  PET Water Bottle (500ml)
+    "10.jpg",   // 10 Glass Spray Bottle (200ml)
+    "11.jpg",   // 11 Custom Vinyl Sticker (100 roll)
+    "12.webp",  // 12 Product Label Sheet (A4)
+    "13.webp",  // 13 Biodegradable Meal Box (750ml)
+    "14.jpg",   // 14 Sauce Cup with Hinged Lid (60ml)
+    "15.jpg",   // 15 Premium Embossed Box (Large)
+  ];
 
-  // Assign images from /public/images/product-*.jpg (1-15)
+  const allProducts = await prisma.product.findMany({ orderBy: { createdAt: "asc" } });
+
+  // Clear existing images so we can reassign the correct ones
+  await prisma.productImage.deleteMany({});
+
   for (let i = 0; i < allProducts.length; i++) {
     const prod = allProducts[i];
-    if (productsWithImages.has(prod.id)) continue; // skip if already has images
-    const imgIndex = (i % 15) + 1;
-    const ext = [10, 14].includes(imgIndex) ? "png" : "jpg";
+    const fileName = imageFileNames[i] ?? imageFileNames[i % imageFileNames.length];
     await prisma.productImage.create({
       data: {
         productId: prod.id,
-        url: `/images/product-${imgIndex}.${ext}`,
+        url: `/images/${fileName}`,
         altText: prod.name,
         sortOrder: 0,
         isMain: true,
