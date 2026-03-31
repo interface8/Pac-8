@@ -6,14 +6,28 @@ type CartItem = {
   image: string;
   price: number;
   quantity: number;
+  savedForLater?: boolean;
+  designThumbnail?: string;
+  slug?: string;
 };
+
+interface PromoState {
+  id: string;
+  code: string;
+  discountType: string;
+  discountValue: number;
+  discount: number;
+  description: string | null;
+}
 
 type CartState = {
   items: CartItem[];
+  promo: PromoState | null;
 };
 
 const initialState: CartState = {
   items: [],
+  promo: null,
 };
 
 const cartSlice = createSlice({
@@ -22,17 +36,16 @@ const cartSlice = createSlice({
   reducers: {
     addItem: (state, action: PayloadAction<CartItem>) => {
       const existingItem = state.items.find(
-        (item) => item.id === action.payload.id,
+        (item) => item.id === action.payload.id && !item.savedForLater,
       );
 
       if (existingItem) {
-        existingItem.quantity += 1;
+        existingItem.quantity += action.payload.quantity || 1;
       } else {
-        state.items.push(action.payload);
+        state.items.push({ ...action.payload, savedForLater: false });
       }
     },
 
-    // Increase quantity
     increaseQuantity: (state, action: PayloadAction<string>) => {
       const item = state.items.find((item) => item.id === action.payload);
       if (item) {
@@ -40,21 +53,50 @@ const cartSlice = createSlice({
       }
     },
 
-    // Decrease the quantity
     decreaseQuantity: (state, action: PayloadAction<string>) => {
       const item = state.items.find((item) => item.id === action.payload);
-      if (item) {
+      if (item && item.quantity > 1) {
         item.quantity -= 1;
       }
     },
 
-    // Remove item
     removeFromCart: (state, action: PayloadAction<string>) => {
       state.items = state.items.filter((item) => item.id !== action.payload);
+    },
+
+    saveForLater: (state, action: PayloadAction<string>) => {
+      const item = state.items.find((item) => item.id === action.payload);
+      if (item) {
+        item.savedForLater = true;
+      }
+    },
+
+    moveToCart: (state, action: PayloadAction<string>) => {
+      const item = state.items.find((item) => item.id === action.payload);
+      if (item) {
+        item.savedForLater = false;
+      }
+    },
+
+    setPromo: (state, action: PayloadAction<PromoState | null>) => {
+      state.promo = action.payload;
+    },
+
+    clearCart: (state) => {
+      state.items = [];
+      state.promo = null;
     },
   },
 });
 
-export const { addItem, increaseQuantity, decreaseQuantity, removeFromCart } =
-  cartSlice.actions;
+export const {
+  addItem,
+  increaseQuantity,
+  decreaseQuantity,
+  removeFromCart,
+  saveForLater,
+  moveToCart,
+  setPromo,
+  clearCart,
+} = cartSlice.actions;
 export default cartSlice.reducer;

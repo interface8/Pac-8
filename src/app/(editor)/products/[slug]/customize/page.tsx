@@ -27,7 +27,6 @@ import {
   Upload,
   Copy,
 } from "lucide-react";
-import Header from "@/components/shared/Header";
 import { useProduct } from "@/hooks/use-products";
 import { toast } from "react-toastify";
 
@@ -584,12 +583,9 @@ export default function CustomizeProductPage({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-32 md:pt-28 pb-12">
-          <div className="flex items-center justify-center h-[60vh]">
-            <div className="animate-pulse text-muted-foreground">Loading editor...</div>
-          </div>
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-32 md:pt-28 pb-12">
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="animate-pulse text-muted-foreground">Loading editor...</div>
         </div>
       </div>
     );
@@ -597,18 +593,15 @@ export default function CustomizeProductPage({
 
   if (error || !product) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-32 md:pt-28 pb-12 text-center py-20">
-          <h1 className="text-2xl font-bold text-foreground">Product Not Found</h1>
-          <Link href="/products" className="text-primary mt-4 inline-block">Back to Products</Link>
-        </div>
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-32 md:pt-28 pb-12 text-center py-20">
+        <h1 className="text-2xl font-bold text-foreground">Product Not Found</h1>
+        <Link href="/products" className="text-primary mt-4 inline-block">Back to Products</Link>
       </div>
     );
   }
 
   const mainImage = product.images.length > 0
-    ? product.images.sort((a, b) => (a.isMain ? -1 : b.isMain ? 1 : a.sortOrder - b.sortOrder))[0]
+    ? product.images.sort((a: { isMain: boolean; sortOrder: number }, b: { isMain: boolean; sortOrder: number }) => (a.isMain ? -1 : b.isMain ? 1 : a.sortOrder - b.sortOrder))[0]
     : null;
 
   // ─── Tool Panels ───────────────────────────────────
@@ -1091,9 +1084,7 @@ export default function CustomizeProductPage({
 
   // ─── Render ────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header />
-
+    <>
       <main className="flex-1 pt-20 md:pt-24">
         {/* Top toolbar */}
         <div className="bg-card border-b border-border px-4 sm:px-6 py-3">
@@ -1276,6 +1267,6 @@ export default function CustomizeProductPage({
       </main>
 
       {showPreview && <PreviewModal />}
-    </div>
+    </>
   );
 }

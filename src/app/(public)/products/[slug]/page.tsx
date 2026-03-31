@@ -18,9 +18,8 @@ import {
   Layers,
   Ruler,
 } from "lucide-react";
-import Header from "@/components/shared/Header";
-import Footer from "@/components/shared/Footer";
 import { useProduct, useProducts } from "@/hooks/use-products";
+import { useWishlist } from "@/hooks/use-wishlist";
 import { ProductGridCard } from "@/components/products/ProductGrid";
 import ImageGallery from "@/components/products/ImageGallery";
 import ReviewsSection from "@/components/products/ReviewsSection";
@@ -39,15 +38,30 @@ export default function ProductDetailPage({
     product ? { categoryId: product.categoryId } : undefined
   );
   const dispatch = useDispatch();
+  const { items: wishlistItems, toggle: toggleWishlist } = useWishlist();
 
   const [quantity, setQuantity] = useState(1);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"description" | "specs" | "shipping">("description");
+
+  const isWishlisted = product ? wishlistItems.some((w) => w.productId === product.id) : false;
+
+  const handleToggleWishlist = async () => {
+    if (!product || wishlistLoading) return;
+    setWishlistLoading(true);
+    try {
+      const added = await toggleWishlist(product.id);
+      toast.success(added ? "Added to wishlist" : "Removed from wishlist");
+    } catch {
+      toast.error("Failed to update wishlist");
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-32 md:pt-28 pb-12">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-32 md:pt-28 pb-12">
           <div className="grid lg:grid-cols-2 gap-10">
             <div className="space-y-4">
               <div className="aspect-square bg-muted rounded-2xl animate-pulse" />
@@ -66,15 +80,12 @@ export default function ProductDetailPage({
             </div>
           </div>
         </div>
-      </div>
     );
   }
 
   if (error || !product) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-32 md:pt-28 pb-12">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-32 md:pt-28 pb-12">
           <div className="text-center py-20">
             <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
               <ShoppingCart size={40} className="text-muted-foreground" />
@@ -90,7 +101,6 @@ export default function ProductDetailPage({
               Browse Products
             </Link>
           </div>
-        </div>
       </div>
     );
   }
@@ -145,9 +155,7 @@ export default function ProductDetailPage({
   const totalPrice = unitPrice * quantity;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header />
-
+    <>
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-32 md:pt-28 pb-16 flex-1 w-full">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-8">
@@ -369,8 +377,16 @@ export default function ProductDetailPage({
                   Add to Cart — ₦{totalPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                 </button>
 
-                <button className="h-12 w-12 border border-border rounded-xl flex items-center justify-center hover:bg-red-50 hover:border-red-200 hover:text-red-500 transition-colors text-muted-foreground shrink-0">
-                  <Heart size={20} />
+                <button
+                  onClick={handleToggleWishlist}
+                  disabled={wishlistLoading}
+                  className={`h-12 w-12 border rounded-xl flex items-center justify-center transition-colors shrink-0 disabled:opacity-50 ${
+                    isWishlisted
+                      ? "bg-red-50 border-red-200 text-red-500"
+                      : "border-border text-muted-foreground hover:bg-red-50 hover:border-red-200 hover:text-red-500"
+                  }`}
+                >
+                  <Heart size={20} fill={isWishlisted ? "currentColor" : "none"} />
                 </button>
               </div>
 
@@ -532,9 +548,7 @@ export default function ProductDetailPage({
           </section>
         )}
       </main>
-
-      <Footer />
-    </div>
+    </>
   );
 }
 

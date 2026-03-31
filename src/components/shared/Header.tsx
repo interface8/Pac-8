@@ -19,6 +19,8 @@ import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
 import { useCategories, type ApiCategory } from "@/hooks/use-categories";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import WishlistSidebar from "@/components/wishlist/WishlistSidebar";
+import { useWishlist } from "@/hooks/use-wishlist";
 
 /* ------------------------------------------------------------------ */
 /*  CategoryMega – desktop hover mega-menu                            */
@@ -451,7 +453,9 @@ function MobileDrawer({
 export default function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [wishlistOpen, setWishlistOpen] = useState(false);
   const { categories, loading: catLoading } = useCategories();
+  const { items: wishlistItems } = useWishlist();
 
   const cartItems = useSelector((state: RootState) => state.cart.items);
   const cartCount = cartItems.reduce((sum, i) => sum + i.quantity, 0);
@@ -540,16 +544,23 @@ export default function Header() {
                 <ThemeToggle />
 
                 {/* Wishlist (desktop) */}
-                <Link
-                  href="/products"
-                  className="hidden sm:flex p-2.5 rounded-full hover:bg-muted transition group"
+                <button
+                  onClick={() => setWishlistOpen(true)}
+                  className="hidden sm:flex relative p-2.5 rounded-full hover:bg-muted transition group"
                   title="Wishlist"
                 >
                   <Heart
                     size={19}
                     className="text-muted-foreground group-hover:text-primary transition-colors"
                   />
-                </Link>
+                  {wishlistItems.length > 0 && (
+                    <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center px-1 ring-2 ring-card">
+                      {wishlistItems.length > 99
+                        ? "99+"
+                        : wishlistItems.length}
+                    </span>
+                  )}
+                </button>
 
                 {/* Account */}
                 <Link
@@ -595,6 +606,12 @@ export default function Header() {
         categories={categories}
         loading={catLoading}
         cartCount={cartCount}
+      />
+
+      {/* Wishlist sidebar */}
+      <WishlistSidebar
+        open={wishlistOpen}
+        onOpenChange={setWishlistOpen}
       />
     </>
   );

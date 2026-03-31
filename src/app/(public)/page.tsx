@@ -1,7 +1,5 @@
 "use client";
 
-import Header from "@/components/shared/Header";
-import Footer from "@/components/shared/Footer";
 import HeroCarousel from "@/components/homepage/HeroCarousel";
 import BestSellers from "@/components/homepage/sections/BestSellers";
 import HowItWorks from "@/components/homepage/sections/HowItWorks";
@@ -11,9 +9,7 @@ import NewsletterSignup from "@/components/homepage/sections/NewsletterSignup";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-
+    <>
       <main className="pt-32 md:pt-28">
         {/* Hero */}
         <HeroCarousel />
@@ -35,8 +31,6 @@ export default function Home() {
           <NewsletterSignup />
         </div>
       </main>
-
-      <Footer />
-    </div>
+    </>
   );
 }

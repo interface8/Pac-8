@@ -1,7 +1,6 @@
 import Header from "@/components/shared/Header";
-import Footer from "@/components/shared/Footer";
 
-export default function PublicLayout({
+export default function EditorLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -10,7 +9,6 @@ export default function PublicLayout({
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
       <main className="flex-1">{children}</main>
-      <Footer />
     </div>
   );
 }

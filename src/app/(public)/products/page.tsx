@@ -3,8 +3,6 @@
 import { useState, useMemo, useCallback, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { SlidersHorizontal, X, LayoutGrid, List, ArrowUpDown } from "lucide-react";
-import Header from "@/components/shared/Header";
-import Footer from "@/components/shared/Footer";
 import FilterSidebar from "@/components/products/FilterSidebar";
 import ProductGrid from "@/components/products/ProductGrid";
 import { useProducts } from "@/hooks/use-products";
@@ -143,9 +141,7 @@ function ProductsContent() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header />
-
+    <>
       {/* Page Header */}
       <div className="bg-gradient-to-r from-primary to-primary/80 pt-32 md:pt-28 pb-10 px-4 sm:px-6">
         <div className="max-w-[1400px] mx-auto">
@@ -305,8 +301,6 @@ function ProductsContent() {
         </div>
       </main>
 
-      <Footer />
-
       {/* Mobile filter drawer */}
       {mobileFiltersOpen && (
         <div className="fixed inset-0 z-[60] lg:hidden">
@@ -330,7 +324,7 @@ function ProductsContent() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
