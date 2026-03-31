@@ -1,10 +1,9 @@
-import { NextRequest } from "next/server";
 import { cartService } from "@/modules/carts";
 import { requireApiAuth, isErrorResponse } from "@/lib/auth";
 import { jsonResponse, errorResponse } from "@/lib/http";
 
 // GET /api/admin/carts — list all carts (analytics/management)
-export async function GET(_request: NextRequest) {
+export async function GET() {
   const guard = await requireApiAuth();
   if (isErrorResponse(guard)) return guard;
 

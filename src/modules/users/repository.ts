@@ -25,8 +25,8 @@ const userWithRoles = {
 interface UserWithRoles {
   id: string;
   email: string;
-  phone: string;
-  name: string;
+  phone: string | null;
+  name: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -39,8 +39,8 @@ function toUserDto(user: UserWithRoles): UserDto {
   return {
     id: user.id,
     email: user.email,
-    phone: user.phone,
-    name: user.name,
+    phone: user.phone ?? "",
+    name: user.name ?? "",
     isActive: user.isActive,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,

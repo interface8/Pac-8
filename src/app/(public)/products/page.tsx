@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { SlidersHorizontal, X, LayoutGrid, List, ArrowUpDown } from "lucide-react";
 import Header from "@/components/shared/Header";
@@ -20,7 +20,7 @@ const sortLabels: Record<SortOption, string> = {
   "name-desc": "Name: Z → A",
 };
 
-export default function ProductsPage() {
+function ProductsContent() {
   const searchParams = useSearchParams();
   const urlCategoryId = searchParams.get("categoryId");
   const urlSearch = searchParams.get("search");
@@ -331,5 +331,13 @@ export default function ProductsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense>
+      <ProductsContent />
+    </Suspense>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { SlidersHorizontal, Search, Star, Sparkles, Palette } from "lucide-react";
+import { SlidersHorizontal, Search, Star, Sparkles } from "lucide-react";
 import {
   Accordion,
   AccordionContent,

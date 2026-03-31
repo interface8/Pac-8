@@ -46,7 +46,7 @@ export async function deleteUser(id: string) {
 
 export async function verifyCredentials(email: string, password: string) {
   const user = await userRepo.findUserByEmail(email);
-  if (!user) return null;
+  if (!user || !user.password) return null;
 
   const valid = await compare(password, user.password);
   if (!valid) return null;

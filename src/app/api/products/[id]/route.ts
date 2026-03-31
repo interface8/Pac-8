@@ -24,7 +24,8 @@ export async function GET(
     }
 
     // Remove costPrice from customer response
-    const { costPrice: _, ...customerProduct } = product;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { costPrice, ...customerProduct } = product;
 
     return jsonResponse({ data: customerProduct });
   } catch (error: unknown) {
