@@ -2,11 +2,23 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { SlidersHorizontal, X } from "lucide-react";
+import { SlidersHorizontal, X, LayoutGrid, List, ArrowUpDown } from "lucide-react";
 import Header from "@/components/shared/Header";
+import Footer from "@/components/shared/Footer";
 import FilterSidebar from "@/components/products/FilterSidebar";
 import ProductGrid from "@/components/products/ProductGrid";
 import { useProducts } from "@/hooks/use-products";
+import { useCategories } from "@/hooks/use-categories";
+
+type SortOption = "newest" | "price-asc" | "price-desc" | "name-asc" | "name-desc";
+
+const sortLabels: Record<SortOption, string> = {
+  newest: "Newest",
+  "price-asc": "Price: Low → High",
+  "price-desc": "Price: High → Low",
+  "name-asc": "Name: A → Z",
+  "name-desc": "Name: Z → A",
+};
 
 export default function ProductsPage() {
   const searchParams = useSearchParams();
@@ -14,17 +26,23 @@ export default function ProductsPage() {
   const urlSearch = searchParams.get("search");
 
   const [sidebarSearch, setSidebarSearch] = useState(urlSearch ?? "");
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    urlCategoryId ? [urlCategoryId] : []
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(
+    urlCategoryId ?? null
   );
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 500000]);
   const [inStockOnly, setInStockOnly] = useState(false);
+  const [isFeatured, setIsFeatured] = useState(false);
+  const [isLowBudget, setIsLowBudget] = useState(false);
+  const [sortBy, setSortBy] = useState<SortOption>("newest");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+
+  const { categories } = useCategories();
 
   // Sync URL params when they change (e.g. from header category links)
   useEffect(() => {
     if (urlCategoryId) {
-      setSelectedCategories([urlCategoryId]);
+      setSelectedCategory(urlCategoryId);
     }
   }, [urlCategoryId]);
 
@@ -37,50 +55,115 @@ export default function ProductsPage() {
   const filters = useMemo(
     () => ({
       search: sidebarSearch || undefined,
-      categoryId: selectedCategories[0] || undefined,
+      categoryId: selectedCategory || undefined,
       minPrice: priceRange[0] > 0 ? priceRange[0] : undefined,
       maxPrice: priceRange[1] < 500000 ? priceRange[1] : undefined,
       inStock: inStockOnly || undefined,
+      isFeatured: isFeatured || undefined,
+      isLowBudget: isLowBudget || undefined,
     }),
-    [sidebarSearch, selectedCategories, priceRange, inStockOnly]
+    [sidebarSearch, selectedCategory, priceRange, inStockOnly, isFeatured, isLowBudget]
   );
 
   const { products, loading } = useProducts(filters);
 
-  const handleCategoryToggle = useCallback((categoryId: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(categoryId)
-        ? prev.filter((id) => id !== categoryId)
-        : [...prev, categoryId]
-    );
+  // Client-side sorting
+  const sortedProducts = useMemo(() => {
+    const sorted = [...products];
+    switch (sortBy) {
+      case "price-asc":
+        sorted.sort((a, b) => a.price - b.price);
+        break;
+      case "price-desc":
+        sorted.sort((a, b) => b.price - a.price);
+        break;
+      case "name-asc":
+        sorted.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case "name-desc":
+        sorted.sort((a, b) => b.name.localeCompare(a.name));
+        break;
+      default:
+        break; // newest = default API order
+    }
+    return sorted;
+  }, [products, sortBy]);
+
+  const handleCategorySelect = useCallback((categoryId: string) => {
+    setSelectedCategory((prev) => (prev === categoryId ? null : categoryId));
   }, []);
 
+  // Find selected category name for chips
+  const selectedCategoryName = useMemo(() => {
+    if (!selectedCategory) return null;
+    const findCat = (cats: typeof categories): string | null => {
+      for (const c of cats) {
+        if (c.id === selectedCategory) return c.name;
+        if (c.children?.length) {
+          const found = findCat(c.children);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    return findCat(categories);
+  }, [selectedCategory, categories]);
+
   const activeFilterCount =
-    selectedCategories.length +
+    (selectedCategory ? 1 : 0) +
     (priceRange[0] > 0 || priceRange[1] < 500000 ? 1 : 0) +
     (inStockOnly ? 1 : 0) +
+    (isFeatured ? 1 : 0) +
+    (isLowBudget ? 1 : 0) +
     (sidebarSearch ? 1 : 0);
 
+  const clearAllFilters = () => {
+    setSidebarSearch("");
+    setSelectedCategory(null);
+    setPriceRange([0, 500000]);
+    setInStockOnly(false);
+    setIsFeatured(false);
+    setIsLowBudget(false);
+  };
+
+  const sidebarProps = {
+    searchQuery: sidebarSearch,
+    onSearchChange: setSidebarSearch,
+    selectedCategory,
+    onCategorySelect: handleCategorySelect,
+    priceRange,
+    onPriceRangeChange: setPriceRange,
+    maxPrice: 500000,
+    inStockOnly,
+    onInStockChange: setInStockOnly,
+    isFeatured,
+    onIsFeaturedChange: setIsFeatured,
+    isLowBudget,
+    onIsLowBudgetChange: setIsLowBudget,
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
       {/* Page Header */}
       <div className="bg-gradient-to-r from-primary to-primary/80 pt-32 md:pt-28 pb-10 px-4 sm:px-6">
         <div className="max-w-[1400px] mx-auto">
           <h1 className="text-3xl md:text-4xl font-bold text-primary-foreground">
-            All Products
+            {selectedCategoryName ?? "All Products"}
           </h1>
           <p className="text-primary-foreground/70 mt-2 text-sm md:text-base">
-            Browse our complete collection of custom packaging
+            {selectedCategoryName
+              ? `Showing products in ${selectedCategoryName}`
+              : "Browse our complete collection of custom packaging"}
           </p>
         </div>
       </div>
 
       {/* Main content */}
-      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8">
-        {/* Mobile filter toggle */}
-        <div className="lg:hidden mb-4 flex gap-3">
+      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 flex-1 w-full">
+        {/* Mobile filter toggle + sort */}
+        <div className="lg:hidden mb-4 flex items-center gap-3">
           <button
             onClick={() => setMobileFiltersOpen(true)}
             className="flex items-center gap-2 px-4 py-2.5 bg-card border border-border rounded-xl text-sm font-medium text-foreground hover:bg-muted transition"
@@ -93,26 +176,16 @@ export default function ProductsPage() {
               </span>
             )}
           </button>
-          <div className="text-sm text-muted-foreground flex items-center">
-            {products.length} product{products.length !== 1 ? "s" : ""}
+          <div className="text-sm text-muted-foreground flex items-center ml-auto">
+            {sortedProducts.length} product{sortedProducts.length !== 1 ? "s" : ""}
           </div>
         </div>
 
         <div className="flex gap-8">
           {/* Desktop Sidebar */}
           <div className="hidden lg:block w-[260px] shrink-0">
-            <div className="sticky top-32 bg-card rounded-2xl border border-border p-5 shadow-sm">
-              <FilterSidebar
-                searchQuery={sidebarSearch}
-                onSearchChange={setSidebarSearch}
-                selectedCategories={selectedCategories}
-                onCategoryToggle={handleCategoryToggle}
-                priceRange={priceRange}
-                onPriceRangeChange={setPriceRange}
-                maxPrice={500000}
-                inStockOnly={inStockOnly}
-                onInStockChange={setInStockOnly}
-              />
+            <div className="sticky top-32 bg-card rounded-2xl border border-border p-5 shadow-sm max-h-[calc(100vh-9rem)] overflow-y-auto">
+              <FilterSidebar {...sidebarProps} />
             </div>
           </div>
 
@@ -120,38 +193,44 @@ export default function ProductsPage() {
           <div className="flex-1 min-w-0">
             {/* Active filters bar */}
             {activeFilterCount > 0 && (
-              <div className="flex flex-wrap items-center gap-2 mb-6">
-                <span className="text-sm text-muted-foreground">Active filters:</span>
+              <div className="flex flex-wrap items-center gap-2 mb-5">
+                <span className="text-sm text-muted-foreground">Filters:</span>
                 {sidebarSearch && (
                   <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium px-3 py-1.5 rounded-full">
                     &ldquo;{sidebarSearch}&rdquo;
-                    <button
-                      onClick={() => setSidebarSearch("")}
-                      className="hover:text-primary/80"
-                    >
+                    <button onClick={() => setSidebarSearch("")} className="hover:text-primary/80">
                       <X size={12} />
                     </button>
                   </span>
                 )}
-                {selectedCategories.length > 0 && (
+                {selectedCategoryName && (
                   <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium px-3 py-1.5 rounded-full">
-                    Category filter
-                    <button
-                      onClick={() => setSelectedCategories([])}
-                      className="hover:text-primary/80"
-                    >
+                    {selectedCategoryName}
+                    <button onClick={() => setSelectedCategory(null)} className="hover:text-primary/80">
+                      <X size={12} />
+                    </button>
+                  </span>
+                )}
+                {isFeatured && (
+                  <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 text-xs font-medium px-3 py-1.5 rounded-full">
+                    Featured
+                    <button onClick={() => setIsFeatured(false)} className="hover:text-amber-500">
+                      <X size={12} />
+                    </button>
+                  </span>
+                )}
+                {isLowBudget && (
+                  <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-medium px-3 py-1.5 rounded-full">
+                    Budget Friendly
+                    <button onClick={() => setIsLowBudget(false)} className="hover:text-green-500">
                       <X size={12} />
                     </button>
                   </span>
                 )}
                 {(priceRange[0] > 0 || priceRange[1] < 500000) && (
                   <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium px-3 py-1.5 rounded-full">
-                    ₦{priceRange[0].toLocaleString()} – ₦
-                    {priceRange[1].toLocaleString()}
-                    <button
-                      onClick={() => setPriceRange([0, 500000])}
-                      className="hover:text-primary/80"
-                    >
+                    ₦{priceRange[0].toLocaleString()} – ₦{priceRange[1].toLocaleString()}
+                    <button onClick={() => setPriceRange([0, 500000])} className="hover:text-primary/80">
                       <X size={12} />
                     </button>
                   </span>
@@ -159,21 +238,13 @@ export default function ProductsPage() {
                 {inStockOnly && (
                   <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium px-3 py-1.5 rounded-full">
                     In Stock
-                    <button
-                      onClick={() => setInStockOnly(false)}
-                      className="hover:text-primary/80"
-                    >
+                    <button onClick={() => setInStockOnly(false)} className="hover:text-primary/80">
                       <X size={12} />
                     </button>
                   </span>
                 )}
                 <button
-                  onClick={() => {
-                    setSidebarSearch("");
-                    setSelectedCategories([]);
-                    setPriceRange([0, 500000]);
-                    setInStockOnly(false);
-                  }}
+                  onClick={clearAllFilters}
                   className="text-xs text-muted-foreground hover:text-foreground underline ml-2"
                 >
                   Clear all
@@ -181,20 +252,60 @@ export default function ProductsPage() {
               </div>
             )}
 
-            <div className="hidden lg:flex items-center justify-between mb-6">
-              <p className="text-sm text-muted-foreground">
+            {/* Toolbar: count + sort + view toggle */}
+            <div className="flex items-center justify-between mb-6 gap-4">
+              <p className="text-sm text-muted-foreground hidden lg:block">
                 Showing{" "}
-                <span className="font-medium text-foreground">
-                  {products.length}
-                </span>{" "}
-                product{products.length !== 1 ? "s" : ""}
+                <span className="font-medium text-foreground">{sortedProducts.length}</span>{" "}
+                product{sortedProducts.length !== 1 ? "s" : ""}
               </p>
+
+              <div className="flex items-center gap-3 ml-auto">
+                {/* Sort */}
+                <div className="relative">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as SortOption)}
+                    className="appearance-none bg-card border border-border rounded-lg pl-8 pr-8 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+                  >
+                    {Object.entries(sortLabels).map(([key, label]) => (
+                      <option key={key} value={key}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                  <ArrowUpDown
+                    size={14}
+                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                  />
+                </div>
+
+                {/* View toggle */}
+                <div className="hidden sm:flex items-center border border-border rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setViewMode("grid")}
+                    className={`p-2 transition ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
+                    title="Grid view"
+                  >
+                    <LayoutGrid size={16} />
+                  </button>
+                  <button
+                    onClick={() => setViewMode("list")}
+                    className={`p-2 transition ${viewMode === "list" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
+                    title="List view"
+                  >
+                    <List size={16} />
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <ProductGrid products={products} loading={loading} columns={3} />
+            <ProductGrid products={sortedProducts} loading={loading} columns={3} viewMode={viewMode} />
           </div>
         </div>
       </main>
+
+      <Footer />
 
       {/* Mobile filter drawer */}
       {mobileFiltersOpen && (
@@ -214,17 +325,7 @@ export default function ProductsPage() {
               </button>
             </div>
             <div className="p-4">
-              <FilterSidebar
-                searchQuery={sidebarSearch}
-                onSearchChange={setSidebarSearch}
-                selectedCategories={selectedCategories}
-                onCategoryToggle={handleCategoryToggle}
-                priceRange={priceRange}
-                onPriceRangeChange={setPriceRange}
-                maxPrice={500000}
-                inStockOnly={inStockOnly}
-                onInStockChange={setInStockOnly}
-              />
+              <FilterSidebar {...sidebarProps} />
             </div>
           </div>
         </div>

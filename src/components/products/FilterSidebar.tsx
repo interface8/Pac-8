@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { SlidersHorizontal, Search } from "lucide-react";
+import { SlidersHorizontal, Search, Star, Sparkles, Palette } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
@@ -15,13 +15,17 @@ import { useCategories, type ApiCategory } from "@/hooks/use-categories";
 interface FilterSidebarProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
-  selectedCategories: string[];
-  onCategoryToggle: (categoryId: string) => void;
+  selectedCategory: string | null;
+  onCategorySelect: (categoryId: string) => void;
   priceRange: [number, number];
   onPriceRangeChange: (range: [number, number]) => void;
   maxPrice?: number;
   inStockOnly: boolean;
   onInStockChange: (value: boolean) => void;
+  isFeatured: boolean;
+  onIsFeaturedChange: (value: boolean) => void;
+  isLowBudget: boolean;
+  onIsLowBudgetChange: (value: boolean) => void;
 }
 
 function flattenCategories(categories: ApiCategory[]): ApiCategory[] {
@@ -38,20 +42,23 @@ function flattenCategories(categories: ApiCategory[]): ApiCategory[] {
 export default function FilterSidebar({
   searchQuery,
   onSearchChange,
-  selectedCategories,
-  onCategoryToggle,
+  selectedCategory,
+  onCategorySelect,
   priceRange,
   onPriceRangeChange,
   maxPrice = 500000,
   inStockOnly,
   onInStockChange,
+  isFeatured,
+  onIsFeaturedChange,
+  isLowBudget,
+  onIsLowBudgetChange,
 }: FilterSidebarProps) {
   const { categories, loading: categoriesLoading } = useCategories();
   const allCategories = flattenCategories(categories);
   const [localPrice, setLocalPrice] = useState<[number, number]>(priceRange);
 
-  const formatPrice = (value: number) =>
-    `₦${value.toLocaleString()}`;
+  const formatPrice = (value: number) => `₦${value.toLocaleString()}`;
 
   return (
     <aside className="w-full space-y-1">
@@ -83,62 +90,93 @@ export default function FilterSidebar({
 
       <Accordion
         type="multiple"
-        defaultValue={["categories", "price", "availability"]}
+        defaultValue={["categories", "price", "availability", "tags"]}
         className="space-y-0"
       >
-        {/* Categories */}
+        {/* Categories — single select (radio behavior) */}
         <AccordionItem value="categories" className="border-b border-border">
           <AccordionTrigger className="text-sm font-semibold text-foreground hover:no-underline py-3">
             Categories
           </AccordionTrigger>
           <AccordionContent>
-            <div className="space-y-2.5 pb-2">
+            <div className="space-y-1 pb-2">
               {categoriesLoading ? (
                 <div className="space-y-2">
                   {[1, 2, 3, 4].map((i) => (
-                    <div
-                      key={i}
-                      className="h-5 bg-muted rounded animate-pulse"
-                    />
+                    <div key={i} className="h-8 bg-muted rounded animate-pulse" />
                   ))}
                 </div>
               ) : allCategories.length > 0 ? (
-                allCategories.map((cat) => (
-                  <label
-                    key={cat.id}
-                    className="flex items-center justify-between cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Checkbox
-                        checked={selectedCategories.includes(cat.id)}
-                        onCheckedChange={() => onCategoryToggle(cat.id)}
-                        className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                      />
-                      <span className="text-sm text-muted-foreground group-hover:text-foreground transition">
-                        {cat.name}
-                      </span>
-                    </div>
-                    {cat.productCount !== undefined && (
-                      <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                        {cat.productCount}
-                      </span>
-                    )}
-                  </label>
-                ))
-              ) : (
-                // Fallback categories when API is empty
-                ["Cups", "Boxes", "Bags", "Bottles"].map(
-                  (name, i) => (
-                    <label
-                      key={i}
-                      className="flex items-center gap-2.5 cursor-pointer"
+                allCategories.map((cat) => {
+                  const isSelected = selectedCategory === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => onCategorySelect(cat.id)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition ${
+                        isSelected
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
                     >
-                      <Checkbox className="data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
-                      <span className="text-sm text-muted-foreground">{name}</span>
-                    </label>
-                  )
-                )
-              )}
+                      <div className="flex items-center gap-2.5">
+                        <div
+                          className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center transition ${
+                            isSelected ? "border-primary" : "border-muted-foreground/40"
+                          }`}
+                        >
+                          {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
+                        </div>
+                        {cat.name}
+                      </div>
+                      {cat.productCount !== undefined && (
+                        <span
+                          className={`text-[11px] px-2 py-0.5 rounded-full ${
+                            isSelected
+                              ? "bg-primary/20 text-primary"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {cat.productCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
+              ) : null}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Tags: Featured, Budget, Custom Print */}
+        <AccordionItem value="tags" className="border-b border-border">
+          <AccordionTrigger className="text-sm font-semibold text-foreground hover:no-underline py-3">
+            Product Tags
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-2.5 pb-2">
+              <label className="flex items-center gap-2.5 cursor-pointer group">
+                <Checkbox
+                  checked={isFeatured}
+                  onCheckedChange={(checked) => onIsFeaturedChange(checked === true)}
+                  className="data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
+                />
+                <Star size={14} className="text-amber-500" />
+                <span className="text-sm text-muted-foreground group-hover:text-foreground transition">
+                  Featured
+                </span>
+              </label>
+              <label className="flex items-center gap-2.5 cursor-pointer group">
+                <Checkbox
+                  checked={isLowBudget}
+                  onCheckedChange={(checked) => onIsLowBudgetChange(checked === true)}
+                  className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                />
+                <Sparkles size={14} className="text-green-600" />
+                <span className="text-sm text-muted-foreground group-hover:text-foreground transition">
+                  Budget Friendly
+                </span>
+              </label>
             </div>
           </AccordionContent>
         </AccordionItem>
@@ -156,9 +194,7 @@ export default function FilterSidebar({
                 step={1000}
                 value={localPrice}
                 onValueChange={(v) => setLocalPrice(v as [number, number])}
-                onValueCommit={(v) =>
-                  onPriceRangeChange(v as [number, number])
-                }
+                onValueCommit={(v) => onPriceRangeChange(v as [number, number])}
                 className="mb-4 [&_[data-slot=slider-track]]:h-1.5 [&_[data-slot=slider-range]]:bg-primary [&_[data-slot=slider-thumb]]:border-primary [&_[data-slot=slider-thumb]]:size-4"
               />
               <div className="flex justify-between text-xs text-muted-foreground">
@@ -174,10 +210,7 @@ export default function FilterSidebar({
         </AccordionItem>
 
         {/* Availability */}
-        <AccordionItem
-          value="availability"
-          className="border-b border-border"
-        >
+        <AccordionItem value="availability" className="border-b border-border">
           <AccordionTrigger className="text-sm font-semibold text-foreground hover:no-underline py-3">
             Availability
           </AccordionTrigger>
@@ -185,9 +218,7 @@ export default function FilterSidebar({
             <label className="flex items-center gap-2.5 cursor-pointer pb-2">
               <Checkbox
                 checked={inStockOnly}
-                onCheckedChange={(checked) =>
-                  onInStockChange(checked === true)
-                }
+                onCheckedChange={(checked) => onInStockChange(checked === true)}
                 className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
               />
               <span className="text-sm text-muted-foreground">In Stock Only</span>
