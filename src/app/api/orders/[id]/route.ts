@@ -1,20 +1,16 @@
 import { NextRequest } from "next/server";
 import { orderService } from "@/modules/orders";
-import { requireApiAuth, isErrorResponse, getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { jsonResponse, errorResponse } from "@/lib/http";
 
 // GET /api/orders/:id — get order by id or order number
+// Supports both authenticated users and guest order lookup
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await requireApiAuth();
-  if (isErrorResponse(guard)) return guard;
-
   try {
     const user = await getCurrentUser();
-    if (!user) return errorResponse("Unauthorized", 401);
-
     const { id } = await params;
 
     // Try by order number first, fallback to ID
@@ -25,8 +21,14 @@ export async function GET(
       order = await orderService.getOrderById(id);
     }
 
-    // Users can only view their own orders
-    if (order.userId !== user.id) {
+    // Logged-in users can only view their own orders
+    // Guest orders (no userId) can be viewed by order number
+    if (user && order.userId && order.userId !== user.id) {
+      return errorResponse("Order not found", 404);
+    }
+
+    // Guest orders require lookup by order number (not raw ID)
+    if (!user && order.userId) {
       return errorResponse("Order not found", 404);
     }
 
