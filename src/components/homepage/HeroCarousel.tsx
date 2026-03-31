@@ -1,47 +1,55 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
+import { useCarouselSlides } from "@/hooks/use-carousels";
 
-const slides = [
+const fallbackSlides = [
   {
     image: "/images/hero-packaging-1.jpg",
     title: "Custom Packaging, Your Way",
-    subtitle:
-      "Design branded cups, boxes, bags & more with our real-time editor.",
-    tag: "Start Customizing Today",
-    cta: { label: "Start Customizing", href: "/products" },
+    subtitle: "Design branded cups, boxes, bags & more with our real-time editor.",
+    link: "/products",
   },
   {
     image: "/images/hero-packaging-2.jpg",
     title: "Bulk Orders, Better Prices",
-    subtitle:
-      "Get volume discounts on 100+ units. Perfect for events & businesses.",
-    tag: "Up to 40% off bulk orders",
-    cta: { label: "Shop Products", href: "/products" },
+    subtitle: "Get volume discounts on 100+ units. Perfect for events & businesses.",
+    link: "/products?isFeatured=true",
   },
   {
     image: "/images/hero-packaging-3.jpg",
     title: "From Concept to Delivery",
-    subtitle:
-      "Browse, customize, and order — we handle printing and shipping.",
-    tag: "Fast turnaround guaranteed",
-    cta: { label: "Browse Catalog", href: "/products" },
+    subtitle: "Browse, customize, and order — we handle printing and shipping.",
+    link: "/products",
   },
 ];
 
 export default function HeroCarousel() {
   const [current, setCurrent] = useState(0);
+  const { slides: dbSlides, loading } = useCarouselSlides("homepage");
+
+  const slides = useMemo(() => {
+    if (dbSlides.length > 0) {
+      return dbSlides.map((s) => ({
+        image: s.imageUrl,
+        title: s.title,
+        subtitle: s.description,
+        link: s.link || "/products",
+      }));
+    }
+    return fallbackSlides;
+  }, [dbSlides]);
 
   const next = useCallback(() => {
     setCurrent((prev) => (prev + 1) % slides.length);
-  }, []);
+  }, [slides.length]);
 
   const prev = useCallback(() => {
     setCurrent((prev) => (prev - 1 + slides.length) % slides.length);
-  }, []);
+  }, [slides.length]);
 
   // Auto-advance
   useEffect(() => {
@@ -51,6 +59,10 @@ export default function HeroCarousel() {
 
   return (
     <div className="relative w-full aspect-[16/7] min-h-[320px] md:min-h-[400px] rounded-2xl overflow-hidden group">
+      {loading && (
+        <div className="absolute inset-0 bg-muted animate-pulse rounded-2xl" />
+      )}
+
       {/* Slides */}
       {slides.map((slide, index) => (
         <div
@@ -71,9 +83,6 @@ export default function HeroCarousel() {
 
           {/* Slide content */}
           <div className="absolute inset-0 flex flex-col justify-center p-6 md:p-12 max-w-2xl">
-            <span className="inline-block w-fit bg-primary text-primary-foreground text-xs font-semibold px-3 py-1.5 rounded-full mb-4">
-              {slide.tag}
-            </span>
             <h2 className="text-2xl md:text-5xl font-bold text-white leading-tight mb-3">
               {slide.title}
             </h2>
@@ -81,10 +90,10 @@ export default function HeroCarousel() {
               {slide.subtitle}
             </p>
             <Link
-              href={slide.cta.href}
+              href={slide.link}
               className="inline-flex items-center gap-2 w-fit bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-xl text-sm font-semibold transition-colors"
             >
-              {slide.cta.label}
+              Shop Now
               <ArrowRight size={16} />
             </Link>
           </div>

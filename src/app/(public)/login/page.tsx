@@ -45,7 +45,7 @@ export default function LoginPage() {
       <h1 className="text-xl md:text-2xl font-semibold text-center mb-2">
         Welcome Back
       </h1>
-      <p className="text-sm md:text-base text-gray-600 text-center mb-6 md:mb-8">
+      <p className="text-sm md:text-base text-muted-foreground text-center mb-6 md:mb-8">
         Login to your account
       </p>
 
@@ -61,7 +61,7 @@ export default function LoginPage() {
         <div className="space-y-2">
           <Label htmlFor="email">Email Address</Label>
           <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               id="email"
               type="email"
@@ -77,7 +77,7 @@ export default function LoginPage() {
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               id="password"
               type="password"
@@ -100,7 +100,7 @@ export default function LoginPage() {
       </form>
 
       {/* Register link */}
-      <div className="mt-6 text-center text-sm text-gray-600">
+      <div className="mt-6 text-center text-sm text-muted-foreground">
         Don&apos;t have an account?{" "}
         <Link href="/register" className="text-orange-500 hover:text-orange-600 font-medium">
           Register here

@@ -24,14 +24,14 @@ const Cart = () => {
 
   if (items.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <div className="text-center">
-          <p className="text-xl font-medium text-gray-700 mb-4">
+          <p className="text-xl font-medium text-foreground mb-4">
             Your cart is empty
           </p>
           <Link
             href="/products"
-            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-medium transition"
+            className="px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-medium transition"
           >
             Continue Shopping
           </Link>
@@ -41,9 +41,9 @@ const Cart = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-28 md:pt-24 py-6 sm:py-8 lg:py-10 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background pt-28 md:pt-24 py-6 sm:py-8 lg:py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-6 sm:mb-8">
           Shopping Cart
         </h1>
 
@@ -53,10 +53,10 @@ const Cart = () => {
             {items.map((item) => (
               <div
                 key={item.id}
-                className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-5 flex flex-col sm:flex-row gap-4 sm:gap-5 hover:shadow transition-shadow"
+                className="bg-card rounded-lg sm:rounded-xl shadow-sm border border-border p-4 sm:p-5 flex flex-col sm:flex-row gap-4 sm:gap-5 hover:shadow transition-shadow"
               >
                 {/* Product Image */}
-                <div className="relative w-full sm:w-28 md:w-32 h-44 sm:h-32 border border-gray-200 rounded-xl overflow-hidden shrink-0">
+                <div className="relative w-full sm:w-28 md:w-32 h-44 sm:h-32 border border-border rounded-xl overflow-hidden shrink-0">
                   <Image
                     src={item.image}
                     alt={item.name}
@@ -67,20 +67,20 @@ const Cart = () => {
 
                 {/* Main content */}
                 <div className="flex-1 flex flex-col">
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-1">
+                  <h3 className="text-base sm:text-lg font-semibold text-foreground mb-1">
                     {item.name}
                   </h3>
 
-                  <p className="text-lg font-bold text-purple-600 mb-3 sm:mb-4">
+                  <p className="text-lg font-bold text-primary mb-3 sm:mb-4">
                     ₦{item.price.toLocaleString()}
                   </p>
 
                   {/* Quantity + Remove */}
                   <div className="flex items-center gap-4 sm:gap-6 mt-auto">
-                    <div className="flex items-center border border-gray-300 rounded-md overflow-hidden">
+                    <div className="flex items-center border border-border rounded-md overflow-hidden">
                       <button
                         onClick={() => dispatch(decreaseQuantity(item.id))}
-                        className="px-3 py-1.5 hover:bg-purple-50 rounded-lg transition-colors"
+                        className="px-3 py-1.5 hover:bg-primary/10 rounded-lg transition-colors"
                         disabled={item.quantity <= 1}
                       >
                         <Minus size={16} />
@@ -92,7 +92,7 @@ const Cart = () => {
 
                       <button
                         onClick={() => dispatch(increaseQuantity(item.id))}
-                        className="px-3 py-1.5 hover:bg-purple-50 rounded-lg transition-colors"
+                        className="px-3 py-1.5 hover:bg-primary/10 rounded-lg transition-colors"
                       >
                         <Plus size={16} />
                       </button>
@@ -109,7 +109,7 @@ const Cart = () => {
                 </div>
 
                 {/* Subtotal per item (right-aligned on larger screens) */}
-                <div className="text-right font-bold text-gray-900 text-lg sm:text-xl mt-3 sm:mt-0 sm:min-w-30">
+                <div className="text-right font-bold text-foreground text-lg sm:text-xl mt-3 sm:mt-0 sm:min-w-30">
                   ₦{(item.price * item.quantity).toLocaleString()}
                 </div>
               </div>
@@ -118,51 +118,51 @@ const Cart = () => {
 
           {/* RIGHT: Order Summary */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-5 sm:p-6 lg:sticky lg:top-6">
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-12">
+            <div className="bg-card rounded-lg sm:rounded-xl shadow-sm border border-border p-5 sm:p-6 lg:sticky lg:top-6">
+              <h3 className="text-lg sm:text-xl font-bold text-foreground mb-12">
                 Order Summary
               </h3>
 
-              <div className="space-y-3  sm:space-y-4 text-sm sm:text-base text-gray-700">
+              <div className="space-y-3  sm:space-y-4 text-sm sm:text-base text-muted-foreground">
                 <div className="flex mt-8 justify-between">
                   <span>Subtotal</span>
-                    <span className="text-gray-900 font-semibold">
+                    <span className="text-foreground font-semibold">
                     ₦{subtotal.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span>VAT (7.5%)</span>
-                  <span className="text-gray-900 font-semibold">
+                  <span className="text-foreground font-semibold">
                     ₦{vat.toLocaleString()}
                   </span>
                 </div>
-                <div className="border-t border-gray-200 pt-4 mt-2">
-                  <div className="flex justify-between text-lg sm:text-lg font-bold text-gray-900">
+                <div className="border-t border-border pt-4 mt-2">
+                  <div className="flex justify-between text-lg sm:text-lg font-bold text-foreground">
                     <span>Total</span>
-                    <span className="text-purple-600 text-2xl">
+                    <span className="text-primary text-2xl">
                       ₦{total.toLocaleString()}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <button className="flex justify-center items-center gap-3 w-full mt-8 bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl font-medium text-base sm:text-lg transition shadow-sm hover:shadow active:scale-[0.98]">
+              <button className="flex justify-center items-center gap-3 w-full mt-8 bg-primary hover:bg-primary/90 text-primary-foreground py-3 rounded-xl font-medium text-base sm:text-lg transition shadow-sm hover:shadow active:scale-[0.98]">
                 Proceed to Checkout
                 <ArrowRight size={16} />
               </button>
 
-              <p className="text-center text-xs sm:text-sm text-gray-500 mt-4">
+              <p className="text-center text-xs sm:text-sm text-muted-foreground mt-4">
                 Please{" "}
-                <span className="text-purple-600 font-medium">login</span> to
+                <span className="text-primary font-medium">login</span> to
                 continue
               </p>
 
               {/* Payment Options – added as per your Figma screenshot */}
-              <div className="mt-6 sm:mt-8 pt-5 sm:pt-6 border-t border-gray-200">
-                <h4 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">
+              <div className="mt-6 sm:mt-8 pt-5 sm:pt-6 border-t border-border">
+                <h4 className="text-base sm:text-lg font-semibold text-foreground mb-3">
                   Payment Options
                 </h4>
-                <ul className="space-y-2 text-sm sm:text-base text-gray-700">
+                <ul className="space-y-2 text-sm sm:text-base text-muted-foreground">
                   <li className="flex items-center gap-2">
                     <span className="text-green-600">✔</span> Full Payment
                   </li>

@@ -66,13 +66,13 @@ export default function ProductsPage() {
       <Header />
 
       {/* Page Header */}
-      <div className="bg-gradient-to-r from-purple-600 to-purple-800 pt-32 md:pt-28 pb-10 px-4 sm:px-6">
+      <div className="bg-gradient-to-r from-primary to-primary/80 pt-32 md:pt-28 pb-10 px-4 sm:px-6">
         <div className="max-w-[1400px] mx-auto">
-          <h1 className="text-3xl md:text-4xl font-bold text-white">
+          <h1 className="text-3xl md:text-4xl font-bold text-primary-foreground">
             All Products
           </h1>
-          <p className="text-purple-200 mt-2 text-sm md:text-base">
-            Browse our complete collection of solar energy solutions
+          <p className="text-primary-foreground/70 mt-2 text-sm md:text-base">
+            Browse our complete collection of custom packaging
           </p>
         </div>
       </div>
@@ -83,17 +83,17 @@ export default function ProductsPage() {
         <div className="lg:hidden mb-4 flex gap-3">
           <button
             onClick={() => setMobileFiltersOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+            className="flex items-center gap-2 px-4 py-2.5 bg-card border border-border rounded-xl text-sm font-medium text-foreground hover:bg-muted transition"
           >
             <SlidersHorizontal size={16} />
             Filters
             {activeFilterCount > 0 && (
-              <span className="bg-purple-600 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold">
+              <span className="bg-primary text-primary-foreground text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold">
                 {activeFilterCount}
               </span>
             )}
           </button>
-          <div className="text-sm text-gray-500 flex items-center">
+          <div className="text-sm text-muted-foreground flex items-center">
             {products.length} product{products.length !== 1 ? "s" : ""}
           </div>
         </div>
@@ -101,7 +101,7 @@ export default function ProductsPage() {
         <div className="flex gap-8">
           {/* Desktop Sidebar */}
           <div className="hidden lg:block w-[260px] shrink-0">
-            <div className="sticky top-32 bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+            <div className="sticky top-32 bg-card rounded-2xl border border-border p-5 shadow-sm">
               <FilterSidebar
                 searchQuery={sidebarSearch}
                 onSearchChange={setSidebarSearch}
@@ -121,47 +121,47 @@ export default function ProductsPage() {
             {/* Active filters bar */}
             {activeFilterCount > 0 && (
               <div className="flex flex-wrap items-center gap-2 mb-6">
-                <span className="text-sm text-gray-500">Active filters:</span>
+                <span className="text-sm text-muted-foreground">Active filters:</span>
                 {sidebarSearch && (
-                  <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 text-xs font-medium px-3 py-1.5 rounded-full">
+                  <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium px-3 py-1.5 rounded-full">
                     &ldquo;{sidebarSearch}&rdquo;
                     <button
                       onClick={() => setSidebarSearch("")}
-                      className="hover:text-purple-900"
+                      className="hover:text-primary/80"
                     >
                       <X size={12} />
                     </button>
                   </span>
                 )}
                 {selectedCategories.length > 0 && (
-                  <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 text-xs font-medium px-3 py-1.5 rounded-full">
+                  <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium px-3 py-1.5 rounded-full">
                     Category filter
                     <button
                       onClick={() => setSelectedCategories([])}
-                      className="hover:text-purple-900"
+                      className="hover:text-primary/80"
                     >
                       <X size={12} />
                     </button>
                   </span>
                 )}
                 {(priceRange[0] > 0 || priceRange[1] < 500000) && (
-                  <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 text-xs font-medium px-3 py-1.5 rounded-full">
+                  <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium px-3 py-1.5 rounded-full">
                     ₦{priceRange[0].toLocaleString()} – ₦
                     {priceRange[1].toLocaleString()}
                     <button
                       onClick={() => setPriceRange([0, 500000])}
-                      className="hover:text-purple-900"
+                      className="hover:text-primary/80"
                     >
                       <X size={12} />
                     </button>
                   </span>
                 )}
                 {inStockOnly && (
-                  <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 text-xs font-medium px-3 py-1.5 rounded-full">
+                  <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium px-3 py-1.5 rounded-full">
                     In Stock
                     <button
                       onClick={() => setInStockOnly(false)}
-                      className="hover:text-purple-900"
+                      className="hover:text-primary/80"
                     >
                       <X size={12} />
                     </button>
@@ -174,7 +174,7 @@ export default function ProductsPage() {
                     setPriceRange([0, 500000]);
                     setInStockOnly(false);
                   }}
-                  className="text-xs text-gray-500 hover:text-gray-700 underline ml-2"
+                  className="text-xs text-muted-foreground hover:text-foreground underline ml-2"
                 >
                   Clear all
                 </button>
@@ -182,9 +182,9 @@ export default function ProductsPage() {
             )}
 
             <div className="hidden lg:flex items-center justify-between mb-6">
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 Showing{" "}
-                <span className="font-medium text-gray-900">
+                <span className="font-medium text-foreground">
                   {products.length}
                 </span>{" "}
                 product{products.length !== 1 ? "s" : ""}
@@ -203,12 +203,12 @@ export default function ProductsPage() {
             className="absolute inset-0 bg-black/40"
             onClick={() => setMobileFiltersOpen(false)}
           />
-          <div className="absolute right-0 top-0 h-full w-80 max-w-[85vw] bg-white shadow-xl overflow-y-auto">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold">Filters</h2>
+          <div className="absolute right-0 top-0 h-full w-80 max-w-[85vw] bg-card shadow-xl overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h2 className="text-lg font-semibold text-foreground">Filters</h2>
               <button
                 onClick={() => setMobileFiltersOpen(false)}
-                className="p-1.5 hover:bg-gray-100 rounded-lg"
+                className="p-1.5 hover:bg-muted rounded-lg"
               >
                 <X size={20} />
               </button>

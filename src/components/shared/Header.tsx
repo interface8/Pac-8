@@ -74,7 +74,7 @@ function CategoryMega({
       </button>
 
       {open && (
-        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-4 w-[640px] bg-card rounded-2xl shadow-2xl shadow-black/8 ring-1 ring-black/5 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="absolute top-full left-0 mt-4 w-[640px] bg-card rounded-2xl shadow-2xl shadow-black/8 ring-1 ring-black/5 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
           {loading ? (
             <div className="p-8 grid grid-cols-2 gap-3">
               {[1, 2, 3, 4, 5, 6].map((i) => (

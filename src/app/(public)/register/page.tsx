@@ -54,7 +54,7 @@ export default function RegisterPage() {
       <h1 className="text-xl md:text-2xl font-semibold text-center mb-2">
         Create Account
       </h1>
-      <p className="text-sm md:text-base text-gray-600 text-center mb-6 md:mb-8">
+      <p className="text-sm md:text-base text-muted-foreground text-center mb-6 md:mb-8">
         Enter your information to get started
       </p>
 
@@ -70,7 +70,7 @@ export default function RegisterPage() {
         <div className="space-y-2">
           <Label htmlFor="name">Full Name</Label>
           <div className="relative">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               id="name"
               type="text"
@@ -86,7 +86,7 @@ export default function RegisterPage() {
         <div className="space-y-2">
           <Label htmlFor="email">Email Address</Label>
           <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               id="email"
               type="email"
@@ -102,7 +102,7 @@ export default function RegisterPage() {
         <div className="space-y-2">
           <Label htmlFor="phone">Phone Number</Label>
           <div className="relative">
-            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               id="phone"
               type="tel"
@@ -118,7 +118,7 @@ export default function RegisterPage() {
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               id="password"
               type="password"
@@ -135,7 +135,7 @@ export default function RegisterPage() {
         <div className="space-y-2">
           <Label htmlFor="confirmPassword">Confirm Password</Label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               id="confirmPassword"
               type="password"
@@ -161,7 +161,7 @@ export default function RegisterPage() {
       </form>
 
       {/* Login link */}
-      <div className="mt-6 text-center text-sm text-gray-600">
+      <div className="mt-6 text-center text-sm text-muted-foreground">
         Already have an account?{" "}
         <Link href="/login" className="text-orange-500 hover:text-orange-600 font-medium">
           Sign in here

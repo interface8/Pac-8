@@ -57,18 +57,18 @@ export default function FilterSidebar({
     <aside className="w-full space-y-1">
       {/* Filters heading */}
       <div className="flex items-center gap-2 px-1 mb-4">
-        <SlidersHorizontal size={18} className="text-purple-600" />
-        <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
+        <SlidersHorizontal size={18} className="text-primary" />
+        <h2 className="text-lg font-semibold text-foreground">Filters</h2>
       </div>
 
       {/* Search Products */}
       <div className="mb-4">
-        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 block">
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">
           Search Products
         </label>
         <div className="relative">
           <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
             size={16}
           />
           <input
@@ -76,7 +76,7 @@ export default function FilterSidebar({
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search..."
-            className="w-full h-10 pl-9 pr-3 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+            className="w-full h-10 pl-9 pr-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
           />
         </div>
       </div>
@@ -87,8 +87,8 @@ export default function FilterSidebar({
         className="space-y-0"
       >
         {/* Categories */}
-        <AccordionItem value="categories" className="border-b border-gray-100">
-          <AccordionTrigger className="text-sm font-semibold text-gray-800 hover:no-underline py-3">
+        <AccordionItem value="categories" className="border-b border-border">
+          <AccordionTrigger className="text-sm font-semibold text-foreground hover:no-underline py-3">
             Categories
           </AccordionTrigger>
           <AccordionContent>
@@ -98,7 +98,7 @@ export default function FilterSidebar({
                   {[1, 2, 3, 4].map((i) => (
                     <div
                       key={i}
-                      className="h-5 bg-gray-100 rounded animate-pulse"
+                      className="h-5 bg-muted rounded animate-pulse"
                     />
                   ))}
                 </div>
@@ -112,14 +112,14 @@ export default function FilterSidebar({
                       <Checkbox
                         checked={selectedCategories.includes(cat.id)}
                         onCheckedChange={() => onCategoryToggle(cat.id)}
-                        className="data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
+                        className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                       />
-                      <span className="text-sm text-gray-700 group-hover:text-gray-900 transition">
+                      <span className="text-sm text-muted-foreground group-hover:text-foreground transition">
                         {cat.name}
                       </span>
                     </div>
                     {cat.productCount !== undefined && (
-                      <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                      <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
                         {cat.productCount}
                       </span>
                     )}
@@ -127,14 +127,14 @@ export default function FilterSidebar({
                 ))
               ) : (
                 // Fallback categories when API is empty
-                ["Solar Panels", "Inverters", "Batteries", "Accessories"].map(
+                ["Cups", "Boxes", "Bags", "Bottles"].map(
                   (name, i) => (
                     <label
                       key={i}
                       className="flex items-center gap-2.5 cursor-pointer"
                     >
-                      <Checkbox className="data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600" />
-                      <span className="text-sm text-gray-700">{name}</span>
+                      <Checkbox className="data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
+                      <span className="text-sm text-muted-foreground">{name}</span>
                     </label>
                   )
                 )
@@ -144,8 +144,8 @@ export default function FilterSidebar({
         </AccordionItem>
 
         {/* Price Range */}
-        <AccordionItem value="price" className="border-b border-gray-100">
-          <AccordionTrigger className="text-sm font-semibold text-gray-800 hover:no-underline py-3">
+        <AccordionItem value="price" className="border-b border-border">
+          <AccordionTrigger className="text-sm font-semibold text-foreground hover:no-underline py-3">
             Price Range
           </AccordionTrigger>
           <AccordionContent>
@@ -159,13 +159,13 @@ export default function FilterSidebar({
                 onValueCommit={(v) =>
                   onPriceRangeChange(v as [number, number])
                 }
-                className="mb-4 [&_[data-slot=slider-track]]:h-1.5 [&_[data-slot=slider-range]]:bg-purple-600 [&_[data-slot=slider-thumb]]:border-purple-600 [&_[data-slot=slider-thumb]]:size-4"
+                className="mb-4 [&_[data-slot=slider-track]]:h-1.5 [&_[data-slot=slider-range]]:bg-primary [&_[data-slot=slider-thumb]]:border-primary [&_[data-slot=slider-thumb]]:size-4"
               />
-              <div className="flex justify-between text-xs text-gray-500">
-                <span className="bg-gray-100 px-2 py-1 rounded">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span className="bg-muted px-2 py-1 rounded">
                   {formatPrice(localPrice[0])}
                 </span>
-                <span className="bg-gray-100 px-2 py-1 rounded">
+                <span className="bg-muted px-2 py-1 rounded">
                   {formatPrice(localPrice[1])}
                 </span>
               </div>
@@ -176,9 +176,9 @@ export default function FilterSidebar({
         {/* Availability */}
         <AccordionItem
           value="availability"
-          className="border-b border-gray-100"
+          className="border-b border-border"
         >
-          <AccordionTrigger className="text-sm font-semibold text-gray-800 hover:no-underline py-3">
+          <AccordionTrigger className="text-sm font-semibold text-foreground hover:no-underline py-3">
             Availability
           </AccordionTrigger>
           <AccordionContent>
@@ -188,9 +188,9 @@ export default function FilterSidebar({
                 onCheckedChange={(checked) =>
                   onInStockChange(checked === true)
                 }
-                className="data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
+                className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
               />
-              <span className="text-sm text-gray-700">In Stock Only</span>
+              <span className="text-sm text-muted-foreground">In Stock Only</span>
             </label>
           </AccordionContent>
         </AccordionItem>

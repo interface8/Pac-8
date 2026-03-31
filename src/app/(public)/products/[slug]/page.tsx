@@ -44,23 +44,23 @@ export default function ProductDetailPage({
           <div className="grid lg:grid-cols-2 gap-10">
             {/* Image skeleton */}
             <div className="space-y-4">
-              <div className="aspect-square bg-gray-200 rounded-2xl animate-pulse" />
+              <div className="aspect-square bg-muted rounded-2xl animate-pulse" />
               <div className="flex gap-3">
                 {[1, 2, 3, 4].map((i) => (
                   <div
                     key={i}
-                    className="w-20 h-20 bg-gray-200 rounded-xl animate-pulse"
+                    className="w-20 h-20 bg-muted rounded-xl animate-pulse"
                   />
                 ))}
               </div>
             </div>
             {/* Content skeleton */}
             <div className="space-y-4">
-              <div className="h-4 bg-gray-200 rounded w-1/4 animate-pulse" />
-              <div className="h-8 bg-gray-200 rounded w-3/4 animate-pulse" />
-              <div className="h-6 bg-gray-200 rounded w-1/3 animate-pulse" />
-              <div className="h-20 bg-gray-200 rounded animate-pulse" />
-              <div className="h-12 bg-gray-200 rounded animate-pulse" />
+              <div className="h-4 bg-muted rounded w-1/4 animate-pulse" />
+              <div className="h-8 bg-muted rounded w-3/4 animate-pulse" />
+              <div className="h-6 bg-muted rounded w-1/3 animate-pulse" />
+              <div className="h-20 bg-muted rounded animate-pulse" />
+              <div className="h-12 bg-muted rounded animate-pulse" />
             </div>
           </div>
         </div>
@@ -74,19 +74,19 @@ export default function ProductDetailPage({
         <Header />
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-32 md:pt-28 pb-12">
           <div className="text-center py-20">
-            <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gray-100 flex items-center justify-center">
-              <ShoppingCart size={40} className="text-gray-400" />
+            <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
+              <ShoppingCart size={40} className="text-muted-foreground" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-800">
+            <h1 className="text-2xl font-bold text-foreground">
               Product Not Found
             </h1>
-            <p className="text-gray-500 mt-2">
+            <p className="text-muted-foreground mt-2">
               The product you&apos;re looking for doesn&apos;t exist or has been
               removed.
             </p>
             <Link
               href="/products"
-              className="inline-flex items-center gap-2 mt-6 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl text-sm font-medium transition-colors"
+              className="inline-flex items-center gap-2 mt-6 bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-xl text-sm font-medium transition-colors"
             >
               Browse Products
             </Link>
@@ -103,7 +103,7 @@ export default function ProductDetailPage({
           if (!a.isMain && b.isMain) return 1;
           return a.sortOrder - b.sortOrder;
         })
-      : [{ id: "fallback", url: "/images/product-1.jpg", altText: product.name, isMain: true, sortOrder: 0 }];
+      : [{ id: "fallback", url: "/images/product-placeholder.png", altText: product.name, isMain: true, sortOrder: 0 }];
 
   const selectedImage = images[selectedImageIndex] ?? images[0];
 
@@ -133,16 +133,16 @@ export default function ProductDetailPage({
 
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-32 md:pt-28 pb-16">
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-gray-500 mb-8">
-          <Link href="/" className="hover:text-purple-600 transition">
+        <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-8">
+          <Link href="/" className="hover:text-primary transition">
             Home
           </Link>
           <ChevronRight size={14} />
-          <Link href="/products" className="hover:text-purple-600 transition">
+          <Link href="/products" className="hover:text-primary transition">
             Products
           </Link>
           <ChevronRight size={14} />
-          <span className="text-gray-900 font-medium truncate max-w-[200px]">
+          <span className="text-foreground font-medium truncate max-w-[200px]">
             {product.name}
           </span>
         </nav>
@@ -152,7 +152,7 @@ export default function ProductDetailPage({
           {/* Left: Images */}
           <div className="space-y-4">
             {/* Main image */}
-            <div className="relative aspect-square bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+            <div className="relative aspect-square bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
               <Image
                 src={selectedImage.url}
                 alt={selectedImage.altText ?? product.name}
@@ -176,8 +176,8 @@ export default function ProductDetailPage({
                     onClick={() => setSelectedImageIndex(idx)}
                     className={`relative w-20 h-20 rounded-xl border-2 overflow-hidden shrink-0 transition ${
                       idx === selectedImageIndex
-                        ? "border-purple-600 shadow-md"
-                        : "border-gray-200 hover:border-gray-300"
+                        ? "border-primary shadow-md"
+                        : "border-border hover:border-muted-foreground"
                     }`}
                   >
                     <Image
@@ -197,7 +197,7 @@ export default function ProductDetailPage({
           <div className="space-y-6">
             {/* Category & badges */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-semibold text-purple-600 uppercase tracking-wider bg-purple-50 px-3 py-1 rounded-full">
+              <span className="text-xs font-semibold text-primary uppercase tracking-wider bg-primary/10 px-3 py-1 rounded-full">
                 {product.categoryName}
               </span>
               {product.isFeatured && (
@@ -213,21 +213,21 @@ export default function ProductDetailPage({
             </div>
 
             {/* Title */}
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight">
               {product.name}
             </h1>
 
             {/* SKU */}
-            <p className="text-xs text-gray-400">SKU: {product.sku}</p>
+            <p className="text-xs text-muted-foreground">SKU: {product.sku}</p>
 
             {/* Price */}
             <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-bold text-gray-900">
+              <span className="text-3xl font-bold text-foreground">
                 ₦{product.price.toLocaleString()}
               </span>
               {product.comparePrice &&
                 product.comparePrice > product.price && (
-                  <span className="text-lg text-gray-400 line-through">
+                  <span className="text-lg text-muted-foreground line-through">
                     ₦{product.comparePrice.toLocaleString()}
                   </span>
                 )}
@@ -263,15 +263,15 @@ export default function ProductDetailPage({
             </div>
 
             {/* Divider */}
-            <div className="border-t border-gray-100" />
+            <div className="border-t border-border" />
 
             {/* Description */}
             {product.description && (
               <div>
-                <h3 className="text-sm font-semibold text-gray-800 mb-2">
+                <h3 className="text-sm font-semibold text-foreground mb-2">
                   Description
                 </h3>
-                <p className="text-sm text-gray-600 leading-relaxed">
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   {product.description}
                 </p>
               </div>
@@ -280,41 +280,41 @@ export default function ProductDetailPage({
             {/* Specs */}
             <div className="grid grid-cols-2 gap-3">
               {product.weight && (
-                <div className="bg-gray-50 rounded-xl px-4 py-3">
-                  <p className="text-[11px] text-gray-400 uppercase tracking-wider">
+                <div className="bg-muted rounded-xl px-4 py-3">
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wider">
                     Weight
                   </p>
-                  <p className="text-sm font-semibold text-gray-800 mt-0.5">
+                  <p className="text-sm font-semibold text-foreground mt-0.5">
                     {product.weight}kg
                   </p>
                 </div>
               )}
               {product.dimensions && (
-                <div className="bg-gray-50 rounded-xl px-4 py-3">
-                  <p className="text-[11px] text-gray-400 uppercase tracking-wider">
+                <div className="bg-muted rounded-xl px-4 py-3">
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wider">
                     Dimensions
                   </p>
-                  <p className="text-sm font-semibold text-gray-800 mt-0.5">
+                  <p className="text-sm font-semibold text-foreground mt-0.5">
                     {product.dimensions}
                   </p>
                 </div>
               )}
               {product.deliveryTime && (
-                <div className="bg-gray-50 rounded-xl px-4 py-3">
-                  <p className="text-[11px] text-gray-400 uppercase tracking-wider">
+                <div className="bg-muted rounded-xl px-4 py-3">
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wider">
                     Delivery
                   </p>
-                  <p className="text-sm font-semibold text-gray-800 mt-0.5">
+                  <p className="text-sm font-semibold text-foreground mt-0.5">
                     {product.deliveryTime}
                   </p>
                 </div>
               )}
               {product.allowCustomPrint && (
-                <div className="bg-purple-50 rounded-xl px-4 py-3">
-                  <p className="text-[11px] text-purple-500 uppercase tracking-wider">
+                <div className="bg-primary/10 rounded-xl px-4 py-3">
+                  <p className="text-[11px] text-primary/70 uppercase tracking-wider">
                     Custom Print
                   </p>
-                  <p className="text-sm font-semibold text-purple-700 mt-0.5">
+                  <p className="text-sm font-semibold text-primary mt-0.5">
                     Available
                     {product.printPrice
                       ? ` (+₦${product.printPrice.toLocaleString()})`
@@ -327,10 +327,10 @@ export default function ProductDetailPage({
             {/* Price tiers */}
             {product.priceTiers.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold text-gray-800 mb-2">
+                <h3 className="text-sm font-semibold text-foreground mb-2">
                   Bulk Pricing
                 </h3>
-                <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                <div className="bg-muted rounded-xl p-4 space-y-2">
                   {product.priceTiers
                     .filter((t) => t.isActive)
                     .map((tier) => (
@@ -338,7 +338,7 @@ export default function ProductDetailPage({
                         key={tier.id}
                         className="flex items-center justify-between text-sm"
                       >
-                        <span className="text-gray-600">
+                        <span className="text-muted-foreground">
                           {tier.minQuantity}+ units
                         </span>
                         <span className="font-medium text-green-700">
@@ -353,27 +353,27 @@ export default function ProductDetailPage({
             )}
 
             {/* Divider */}
-            <div className="border-t border-gray-100" />
+            <div className="border-t border-border" />
 
             {/* Quantity & Add to Cart */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
               {/* Quantity selector */}
-              <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden">
+              <div className="flex items-center border border-border rounded-xl overflow-hidden">
                 <button
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="w-11 h-11 flex items-center justify-center hover:bg-gray-50 transition text-gray-600"
+                  className="w-11 h-11 flex items-center justify-center hover:bg-muted transition text-muted-foreground"
                   disabled={quantity <= 1}
                 >
                   <Minus size={16} />
                 </button>
-                <span className="w-14 h-11 flex items-center justify-center text-sm font-semibold border-x border-gray-200">
+                <span className="w-14 h-11 flex items-center justify-center text-sm font-semibold border-x border-border">
                   {quantity}
                 </span>
                 <button
                   onClick={() =>
                     setQuantity((q) => Math.min(product.quantity, q + 1))
                   }
-                  className="w-11 h-11 flex items-center justify-center hover:bg-gray-50 transition text-gray-600"
+                  className="w-11 h-11 flex items-center justify-center hover:bg-muted transition text-muted-foreground"
                   disabled={quantity >= product.quantity}
                 >
                   <Plus size={16} />
@@ -384,35 +384,35 @@ export default function ProductDetailPage({
               <button
                 onClick={handleAddToCart}
                 disabled={product.quantity === 0}
-                className="flex-1 h-12 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors"
+                className="flex-1 h-12 bg-primary hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed text-primary-foreground font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors"
               >
                 <ShoppingCart size={18} />
                 Add to Cart
               </button>
 
               {/* Wishlist */}
-              <button className="h-12 w-12 border border-gray-200 rounded-xl flex items-center justify-center hover:bg-red-50 hover:border-red-200 hover:text-red-500 transition-colors text-gray-400 shrink-0">
+              <button className="h-12 w-12 border border-border rounded-xl flex items-center justify-center hover:bg-red-50 hover:border-red-200 hover:text-red-500 transition-colors text-muted-foreground shrink-0">
                 <Heart size={20} />
               </button>
             </div>
 
             {/* Trust badges */}
             <div className="grid grid-cols-3 gap-3 pt-2">
-              <div className="flex flex-col items-center text-center p-3 rounded-xl bg-gray-50">
-                <Truck size={20} className="text-purple-600 mb-1.5" />
-                <span className="text-[11px] font-medium text-gray-700">
+              <div className="flex flex-col items-center text-center p-3 rounded-xl bg-muted">
+                <Truck size={20} className="text-primary mb-1.5" />
+                <span className="text-[11px] font-medium text-muted-foreground">
                   Fast Delivery
                 </span>
               </div>
-              <div className="flex flex-col items-center text-center p-3 rounded-xl bg-gray-50">
-                <Shield size={20} className="text-purple-600 mb-1.5" />
-                <span className="text-[11px] font-medium text-gray-700">
+              <div className="flex flex-col items-center text-center p-3 rounded-xl bg-muted">
+                <Shield size={20} className="text-primary mb-1.5" />
+                <span className="text-[11px] font-medium text-muted-foreground">
                   Warranty
                 </span>
               </div>
-              <div className="flex flex-col items-center text-center p-3 rounded-xl bg-gray-50">
-                <RotateCcw size={20} className="text-purple-600 mb-1.5" />
-                <span className="text-[11px] font-medium text-gray-700">
+              <div className="flex flex-col items-center text-center p-3 rounded-xl bg-muted">
+                <RotateCcw size={20} className="text-primary mb-1.5" />
+                <span className="text-[11px] font-medium text-muted-foreground">
                   Easy Returns
                 </span>
               </div>
@@ -422,17 +422,17 @@ export default function ProductDetailPage({
 
         {/* Product features if shortDescription */}
         {product.shortDescription && (
-          <section className="mt-16 bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
+          <section className="mt-16 bg-card rounded-2xl border border-border p-8 shadow-sm">
+            <h2 className="text-xl font-bold text-foreground mb-4">
               Product Highlights
             </h2>
             <div className="grid sm:grid-cols-2 gap-3">
               {product.shortDescription.split(",").map((feature, i) => (
                 <div key={i} className="flex items-start gap-2.5">
-                  <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center mt-0.5 shrink-0">
-                    <Check size={12} className="text-purple-600" />
+                  <div className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center mt-0.5 shrink-0">
+                    <Check size={12} className="text-primary" />
                   </div>
-                  <span className="text-sm text-gray-700">
+                  <span className="text-sm text-muted-foreground">
                     {feature.trim()}
                   </span>
                 </div>
@@ -446,16 +446,16 @@ export default function ProductDetailPage({
           <section className="mt-16">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">
+                <h2 className="text-xl font-bold text-foreground">
                   You May Also Like
                 </h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  Explore more solar energy solutions
+                <p className="text-sm text-muted-foreground mt-1">
+                  Explore more packaging products
                 </p>
               </div>
               <Link
                 href="/products"
-                className="text-sm font-medium text-purple-600 hover:text-purple-700 transition"
+                className="text-sm font-medium text-primary hover:text-primary/80 transition"
               >
                 View All
               </Link>
