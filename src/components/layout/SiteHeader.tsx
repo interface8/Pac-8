@@ -1,0 +1,518 @@
+"use client";
+
+import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  Search,
+  ShoppingBag,
+  User,
+  ChevronDown,
+  Menu,
+  X,
+  ChevronRight,
+  Zap,
+  Heart,
+  ArrowRight,
+} from "lucide-react";
+import { useSelector } from "react-redux";
+import type { RootState } from "@/store";
+import { useCategories, type ApiCategory } from "@/hooks/use-categories";
+
+/* ------------------------------------------------------------------ */
+/*  CategoryMega – desktop hover mega-menu                            */
+/* ------------------------------------------------------------------ */
+function CategoryMega({
+  categories,
+  loading,
+}: {
+  categories: ApiCategory[];
+  loading: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const enter = () => {
+    if (timer.current) clearTimeout(timer.current);
+    setOpen(true);
+  };
+  const leave = () => {
+    timer.current = setTimeout(() => {
+      setOpen(false);
+      setActiveId(null);
+    }, 220);
+  };
+
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  useEffect(() => {
+    if (open && categories.length && !activeId) setActiveId(categories[0].id);
+  }, [open, categories, activeId]);
+
+  const active = categories.find((c) => c.id === activeId);
+
+  return (
+    <div className="relative" onMouseEnter={enter} onMouseLeave={leave}>
+      <button
+        className={`flex items-center gap-1 text-[13px] font-semibold tracking-wide uppercase transition-colors ${
+          open ? "text-purple-600" : "text-gray-700 hover:text-purple-600"
+        }`}
+      >
+        Categories
+        <ChevronDown
+          size={14}
+          className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-4 w-[640px] bg-white rounded-2xl shadow-2xl shadow-black/8 ring-1 ring-black/5 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+          {loading ? (
+            <div className="p-8 grid grid-cols-2 gap-3">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="h-10 bg-gray-100 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          ) : categories.length === 0 ? (
+            <div className="p-10 text-center text-sm text-gray-400">
+              No categories yet
+            </div>
+          ) : (
+            <div className="flex min-h-[280px]">
+              {/* Left – parent list */}
+              <div className="w-[220px] bg-gray-50/60 py-3 border-r border-gray-100">
+                {categories.map((cat) => (
+                  <Link
+                    key={cat.id}
+                    href={`/products?categoryId=${cat.id}`}
+                    onMouseEnter={() => setActiveId(cat.id)}
+                    onClick={() => setOpen(false)}
+                    className={`flex items-center justify-between px-5 py-2.5 text-[13px] transition-all ${
+                      activeId === cat.id
+                        ? "bg-white text-purple-700 font-semibold shadow-sm border-l-2 border-purple-600"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-white/50 border-l-2 border-transparent"
+                    }`}
+                  >
+                    <span className="truncate">{cat.name}</span>
+                    {cat.children && cat.children.length > 0 && (
+                      <ChevronRight size={13} className="text-gray-300 shrink-0" />
+                    )}
+                  </Link>
+                ))}
+                <div className="mx-5 mt-2 pt-2 border-t border-gray-200/60">
+                  <Link
+                    href="/products"
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-1.5 text-[12px] font-semibold text-purple-600 hover:text-purple-700 py-1.5"
+                  >
+                    View all products
+                    <ArrowRight size={12} />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Right – subcategories */}
+              <div className="flex-1 p-6">
+                {active ? (
+                  <>
+                    <Link
+                      href={`/products?categoryId=${active.id}`}
+                      onClick={() => setOpen(false)}
+                      className="text-sm font-bold text-gray-900 hover:text-purple-700 transition-colors"
+                    >
+                      {active.name}
+                    </Link>
+                    {active.description && (
+                      <p className="text-xs text-gray-400 mt-1 line-clamp-2 max-w-sm">{active.description}</p>
+                    )}
+                    {active.children && active.children.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-1 mt-4">
+                        {active.children.map((child) => (
+                          <Link
+                            key={child.id}
+                            href={`/products?categoryId=${child.id}`}
+                            onClick={() => setOpen(false)}
+                            className="flex items-center justify-between py-2 text-[13px] text-gray-600 hover:text-purple-700 transition-colors group"
+                          >
+                            <span>{child.name}</span>
+                            {child.productCount !== undefined && child.productCount > 0 && (
+                              <span className="text-[11px] text-gray-300 group-hover:text-purple-400 tabular-nums">
+                                {child.productCount}
+                              </span>
+                            )}
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-6 text-sm text-gray-300">No subcategories</p>
+                    )}
+                    <div className="mt-5 pt-3 border-t border-gray-100">
+                      <Link
+                        href={`/products?categoryId=${active.id}`}
+                        onClick={() => setOpen(false)}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-purple-600 hover:text-purple-700"
+                      >
+                        Shop all {active.name} <ArrowRight size={12} />
+                      </Link>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-300 mt-10 text-center">Hover a category</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  SearchOverlay – click icon → full-screen search                   */
+/* ------------------------------------------------------------------ */
+function SearchOverlay({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      inputRef.current?.focus();
+      document.body.style.overflow = "hidden";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (query.trim()) {
+      router.push(`/products?search=${encodeURIComponent(query.trim())}`);
+      onClose();
+      setQuery("");
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-start justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-150">
+      <div className="w-full max-w-2xl mt-[15vh] mx-4 animate-in slide-in-from-top-4 duration-200">
+        <form onSubmit={submit} className="relative">
+          <Search size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search for products..."
+            className="w-full h-14 pl-14 pr-14 bg-white rounded-2xl text-base shadow-2xl ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder:text-gray-400"
+          />
+          <button
+            type="button"
+            onClick={() => { onClose(); setQuery(""); }}
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 hover:bg-gray-100 rounded-lg transition"
+          >
+            <X size={18} className="text-gray-400" />
+          </button>
+        </form>
+        <p className="text-center text-xs text-white/60 mt-4">
+          Press Enter to search &middot; Esc to close
+        </p>
+      </div>
+      <div className="absolute inset-0 -z-10" onClick={() => { onClose(); setQuery(""); }} />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  MobileDrawer                                                      */
+/* ------------------------------------------------------------------ */
+function MobileDrawer({
+  isOpen,
+  onClose,
+  categories,
+  loading,
+  cartCount,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  categories: ApiCategory[];
+  loading: boolean;
+  cartCount: number;
+}) {
+  const [expandedCat, setExpandedCat] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[60] lg:hidden">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="absolute left-0 top-0 h-full w-[300px] max-w-[85vw] bg-white shadow-2xl flex flex-col animate-in slide-in-from-left duration-250">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <Link href="/" onClick={onClose} className="flex items-center gap-2.5">
+            <div className="bg-gradient-to-br from-purple-600 to-purple-700 p-1.5 rounded-xl">
+              <Zap className="text-white" size={16} />
+            </div>
+            <span className="text-lg font-extrabold tracking-tight text-gray-900">
+              pac<span className="text-purple-600"> 8</span>
+            </span>
+          </Link>
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg transition">
+            <X size={18} className="text-gray-500" />
+          </button>
+        </div>
+
+        {/* Links */}
+        <nav className="flex-1 overflow-y-auto py-3">
+          <div className="px-3 space-y-0.5 mb-2">
+            {[
+              { href: "/", label: "Home" },
+              { href: "/products", label: "Shop All" },
+            ].map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={onClose}
+                className="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+              >
+                {link.label}
+              </Link>
+            ))}
+            <Link
+              href="/cart"
+              onClick={onClose}
+              className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+            >
+              <span>Cart</span>
+              {cartCount > 0 && (
+                <span className="bg-purple-600 text-white text-[10px] font-bold min-w-[20px] h-5 rounded-full flex items-center justify-center px-1.5">
+                  {cartCount}
+                </span>
+              )}
+            </Link>
+          </div>
+
+          {/* Divider */}
+          <div className="mx-5 my-3 border-t border-gray-100" />
+
+          {/* Categories */}
+          <div className="px-3">
+            <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">
+              Categories
+            </p>
+            {loading ? (
+              <div className="space-y-2 px-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-9 bg-gray-100 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            ) : (
+              categories.map((cat) => (
+                <div key={cat.id}>
+                  <div className="flex items-center">
+                    <Link
+                      href={`/products?categoryId=${cat.id}`}
+                      onClick={onClose}
+                      className="flex-1 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-xl transition"
+                    >
+                      {cat.name}
+                    </Link>
+                    {cat.children && cat.children.length > 0 && (
+                      <button
+                        onClick={() => setExpandedCat(expandedCat === cat.id ? null : cat.id)}
+                        className="p-2 hover:bg-gray-50 rounded-lg transition"
+                      >
+                        <ChevronDown
+                          size={14}
+                          className={`text-gray-400 transition-transform duration-200 ${expandedCat === cat.id ? "rotate-180" : ""}`}
+                        />
+                      </button>
+                    )}
+                  </div>
+                  {expandedCat === cat.id && cat.children && cat.children.length > 0 && (
+                    <div className="ml-5 pl-3 border-l-2 border-purple-100 space-y-0.5 mb-2">
+                      {cat.children.map((child) => (
+                        <Link
+                          key={child.id}
+                          href={`/products?categoryId=${child.id}`}
+                          onClick={onClose}
+                          className="flex items-center justify-between px-3 py-2 text-[13px] text-gray-500 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition"
+                        >
+                          <span>{child.name}</span>
+                          {child.productCount !== undefined && child.productCount > 0 && (
+                            <span className="text-[10px] text-gray-300">{child.productCount}</span>
+                          )}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </nav>
+
+        {/* Bottom */}
+        <div className="border-t border-gray-100 p-4 space-y-2">
+          <Link
+            href="/login"
+            onClick={onClose}
+            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold text-gray-700 border border-gray-200 hover:bg-gray-50 transition"
+          >
+            Sign In
+          </Link>
+          <Link
+            href="/register"
+            onClick={onClose}
+            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 transition"
+          >
+            Create Account
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  SiteHeader                                                        */
+/* ================================================================== */
+export default function SiteHeader() {
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const { categories, loading: catLoading } = useCategories();
+
+  const cartItems = useSelector((state: RootState) => state.cart.items);
+  const cartCount = cartItems.reduce((sum, i) => sum + i.quantity, 0);
+
+  // Close search on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSearchOpen(false);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  return (
+    <>
+      <header className="fixed top-0 left-0 z-50 w-full">
+        {/* Top strip */}
+        <div className="bg-gray-900 text-gray-300 text-[11px] py-1.5 text-center tracking-wide">
+          <span className="hidden sm:inline">
+            Free shipping on orders over ₦500,000 &nbsp;&bull;&nbsp; 30-day returns
+          </span>
+          <span className="sm:hidden">Free shipping over ₦500k</span>
+        </div>
+
+        {/* Main bar */}
+        <div className="bg-white/95 backdrop-blur-xl border-b border-gray-100/80">
+          <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
+            <div className="flex items-center justify-between h-[60px]">
+              {/* Left cluster */}
+              <div className="flex items-center gap-6">
+                {/* Mobile burger */}
+                <button
+                  className="lg:hidden p-1.5 -ml-1.5 hover:bg-gray-100 rounded-lg transition"
+                  onClick={() => setMobileOpen(true)}
+                  aria-label="Open menu"
+                >
+                  <Menu size={22} className="text-gray-800" />
+                </button>
+
+                {/* Logo */}
+                <Link href="/" className="flex items-center gap-2 shrink-0 group">
+                  <div className="bg-gradient-to-br from-purple-600 to-purple-700 p-2 rounded-xl shadow-lg shadow-purple-600/20 group-hover:shadow-purple-600/30 transition-shadow">
+                    <Zap className="text-white" size={18} />
+                  </div>
+                  <span className="text-xl font-extrabold tracking-tight text-gray-900">
+                    pac<span className="text-purple-600"> 8</span>
+                  </span>
+                </Link>
+
+                {/* Desktop nav links */}
+                <nav className="hidden lg:flex items-center gap-1">
+                  <CategoryMega categories={categories} loading={catLoading} />
+                  <Link
+                    href="/products"
+                    className="text-[13px] font-semibold tracking-wide uppercase text-gray-700 hover:text-purple-600 transition-colors px-3 py-2"
+                  >
+                    Shop
+                  </Link>
+                </nav>
+              </div>
+
+              {/* Right cluster */}
+              <div className="flex items-center gap-0.5 sm:gap-1">
+                {/* Search trigger */}
+                <button
+                  onClick={() => setSearchOpen(true)}
+                  className="p-2.5 rounded-full hover:bg-gray-100 transition group"
+                  aria-label="Search"
+                >
+                  <Search size={19} className="text-gray-600 group-hover:text-purple-600 transition-colors" />
+                </button>
+
+                {/* Wishlist (desktop) */}
+                <Link
+                  href="/products"
+                  className="hidden sm:flex p-2.5 rounded-full hover:bg-gray-100 transition group"
+                  title="Wishlist"
+                >
+                  <Heart size={19} className="text-gray-600 group-hover:text-purple-600 transition-colors" />
+                </Link>
+
+                {/* Account */}
+                <Link
+                  href="/login"
+                  className="hidden sm:flex p-2.5 rounded-full hover:bg-gray-100 transition group"
+                  title="Account"
+                >
+                  <User size={19} className="text-gray-600 group-hover:text-purple-600 transition-colors" />
+                </Link>
+
+                {/* Cart */}
+                <Link
+                  href="/cart"
+                  className="relative p-2.5 rounded-full hover:bg-gray-100 transition group"
+                  title="Cart"
+                >
+                  <ShoppingBag size={19} className="text-gray-600 group-hover:text-purple-600 transition-colors" />
+                  {cartCount > 0 && (
+                    <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] bg-purple-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 ring-2 ring-white">
+                      {cartCount > 99 ? "99+" : cartCount}
+                    </span>
+                  )}
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Search overlay */}
+      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
+
+      {/* Mobile drawer */}
+      <MobileDrawer
+        isOpen={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        categories={categories}
+        loading={catLoading}
+        cartCount={cartCount}
+      />
+    </>
+  );
+}

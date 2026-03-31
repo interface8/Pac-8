@@ -5,10 +5,7 @@ import { use } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  Sun,
-  Search,
   ShoppingCart,
-  LogIn,
   ChevronRight,
   Minus,
   Plus,
@@ -19,11 +16,11 @@ import {
   Star,
   Check,
 } from "lucide-react";
+import SiteHeader from "@/components/layout/SiteHeader";
 import { useProduct, useFeaturedProducts } from "@/hooks/use-products";
 import { ProductGridCard } from "@/components/products/ProductGrid";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { addItem } from "@/store/cartSlice";
-import type { RootState } from "@/store";
 import { toast } from "react-toastify";
 
 export default function ProductDetailPage({
@@ -35,8 +32,6 @@ export default function ProductDetailPage({
   const { product, loading, error } = useProduct(slug);
   const { products: relatedProducts } = useFeaturedProducts(4);
   const dispatch = useDispatch();
-  const cartItems = useSelector((state: RootState) => state.cart.items);
-  const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   const [quantity, setQuantity] = useState(1);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -44,8 +39,8 @@ export default function ProductDetailPage({
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <NavBar cartCount={cartCount} />
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-24 pb-12">
+        <SiteHeader />
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-32 md:pt-28 pb-12">
           <div className="grid lg:grid-cols-2 gap-10">
             {/* Image skeleton */}
             <div className="space-y-4">
@@ -76,8 +71,8 @@ export default function ProductDetailPage({
   if (error || !product) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <NavBar cartCount={cartCount} />
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-24 pb-12">
+        <SiteHeader />
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-32 md:pt-28 pb-12">
           <div className="text-center py-20">
             <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gray-100 flex items-center justify-center">
               <ShoppingCart size={40} className="text-gray-400" />
@@ -134,9 +129,9 @@ export default function ProductDetailPage({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar cartCount={cartCount} />
+      <SiteHeader />
 
-      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-24 pb-16">
+      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-32 md:pt-28 pb-16">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm text-gray-500 mb-8">
           <Link href="/" className="hover:text-purple-600 transition">
@@ -480,48 +475,4 @@ export default function ProductDetailPage({
   );
 }
 
-function NavBar({ cartCount }: { cartCount: number }) {
-  return (
-    <nav className="fixed top-0 left-0 z-50 w-full bg-white border-b border-gray-100 shadow-sm">
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="bg-purple-600 p-2 rounded-xl shadow-md">
-            <Sun className="text-white" size={24} />
-          </div>
-          <span className="text-xl font-bold text-gray-900 hidden sm:block">
-            Power<span className="text-purple-600"> - 8</span>
-          </span>
-        </Link>
 
-        <Link
-          href="/products"
-          className="hidden md:flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 rounded-xl text-sm font-medium text-gray-700 transition"
-        >
-          <Search size={16} />
-          Browse Products
-        </Link>
-
-        <div className="flex items-center gap-3">
-          <Link
-            href="/cart"
-            className="relative p-2 rounded-lg hover:bg-gray-100 transition"
-          >
-            <ShoppingCart size={20} className="text-gray-600" />
-            {cartCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-purple-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                {cartCount}
-              </span>
-            )}
-          </Link>
-          <Link
-            href="/login"
-            className="hidden sm:flex items-center gap-2 px-4 py-2 border border-gray-200 hover:bg-gray-50 rounded-lg text-sm font-medium text-gray-700 transition"
-          >
-            <LogIn size={16} />
-            Login
-          </Link>
-        </div>
-      </div>
-    </nav>
-  );
-}
