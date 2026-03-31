@@ -23,8 +23,10 @@ model User {
   roles  UserRole[]
   orders Order[]
 
-  wishlist  Wishlist[]
-  addresses Address[]
+  wishlist     Wishlist[]
+  addresses    Address[]
+  reviews      Review[]
+  savedDesigns SavedDesign[]
 
   @@map("users")
 }
@@ -107,6 +109,7 @@ model Product {
   orderItems        OrderItem[]
   cartItems         CartItem[]
   wishlistItems     Wishlist[]
+  reviews           Review[]
   productCategory   ProductCategory? @relation(fields: [productCategoryId], references: [id])
   productCategoryId String?
 
@@ -164,11 +167,13 @@ model CartItem {
   unitPrice     Decimal  @db.Decimal(10, 2)
   totalPrice    Decimal  @db.Decimal(10, 2)
   savedForLater Boolean  @default(false)
+  savedDesignId String? // Link to a saved custom design
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cart        Cart         @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product     Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  savedDesign SavedDesign? @relation(fields: [savedDesignId], references: [id])
 
   @@map("cart_items")
 }
@@ -234,8 +239,13 @@ model OrderItem {
   productSku   String
   productImage String?
 
-  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  // Custom design snapshot
+  savedDesignId String?
+  designData    String? // JSON snapshot of design at time of order
+
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product      @relation(fields: [productId], references: [id])
+  savedDesign SavedDesign? @relation(fields: [savedDesignId], references: [id])
 
   @@map("order_items")
 }
@@ -266,9 +276,13 @@ model Order {
   trackingNumber    String?
 
   // Payment Info
-  paymentMethod    String? // BANK_TRANSFER, WHATSAPP, etc.
+  paymentMethod    String? // STRIPE, BANK_TRANSFER, WHATSAPP, etc.
   paymentReference String?
+  paymentIntentId  String? // Stripe payment intent ID
   bankAccountInfo  String? // JSON string with bank details
+
+  // Promo Code
+  promoCodeId String?
 
   // Notes
   customerNotes String?
@@ -283,6 +297,7 @@ model Order {
   // Relations
   user            User?       @relation(fields: [userId], references: [id])
   shippingAddress Address?    @relation(fields: [shippingAddressId], references: [id])
+  promoCode       PromoCode?  @relation(fields: [promoCodeId], references: [id])
   items           OrderItem[]
 
   @@map("orders")
@@ -341,6 +356,136 @@ model Carousel {
   sortOrder   Int
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+}
+
+// ─── Reviews & Ratings ───────────────────────────────────
+
+model Review {
+  id        String  @id @default(cuid())
+  productId String
+  userId    String
+  rating    Int // 1-5
+  title     String?
+  comment   String?
+  isVisible Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, userId]) // One review per product per user
+  @@map("reviews")
+}
+
+// ─── Promo & Discount Codes ─────────────────────────────
+
+model PromoCode {
+  id             String       @id @default(cuid())
+  code           String       @unique
+  description    String?
+  discountType   DiscountType @default(PERCENTAGE)
+  discountValue  Decimal      @db.Decimal(10, 2)
+  minOrderAmount Decimal?     @db.Decimal(10, 2) // Minimum order to apply
+  maxDiscount    Decimal?     @db.Decimal(10, 2) // Cap on discount amount
+  usageLimit     Int? // Max total uses (null = unlimited)
+  usageCount     Int          @default(0)
+  perUserLimit   Int          @default(1) // Max uses per user
+  isActive       Boolean      @default(true)
+  startsAt       DateTime     @default(now())
+  expiresAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+
+  @@map("promo_codes")
+}
+
+// ─── Newsletter ─────────────────────────────────────────
+
+model NewsletterSubscriber {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  name           String?
+  isActive       Boolean   @default(true)
+  subscribedAt   DateTime  @default(now())
+  unsubscribedAt DateTime?
+
+  @@map("newsletter_subscribers")
+}
+
+// ─── Testimonials ───────────────────────────────────────
+
+model Testimonial {
+  id        String  @id @default(cuid())
+  name      String
+  role      String? // e.g. "Event Planner", "Food Vendor"
+  company   String?
+  content   String
+  image     String?
+  rating    Int     @default(5) // 1-5
+  isVisible Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("testimonials")
+}
+
+// ─── FAQs ───────────────────────────────────────────────
+
+model FAQ {
+  id        String  @id @default(cuid())
+  question  String
+  answer    String
+  category  String? // e.g. "Ordering", "Customization", "Shipping"
+  isVisible Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("faqs")
+}
+
+// ─── Saved Designs (Customization Editor) ───────────────
+
+model SavedDesign {
+  id        String       @id @default(cuid())
+  userId    String
+  productId String
+  name      String       @default("Untitled Design")
+  status    DesignStatus @default(DRAFT)
+
+  // Design data stored as JSON
+  designData   String // JSON: all elements, positions, colors, fonts, etc.
+  thumbnailUrl String? // Generated preview image
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@map("saved_designs")
+}
+
+// ─── Enums ──────────────────────────────────────────────
+
+enum DesignStatus {
+  DRAFT
+  COMPLETED
+  ARCHIVED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
 }
 
 enum CarouselTypeEnum {
