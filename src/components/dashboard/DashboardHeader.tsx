@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,11 +13,24 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, User, ChevronDown } from "lucide-react";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { LogOut, User, ChevronDown, ExternalLink } from "lucide-react";
+import Link from "next/link";
+import React from "react";
 
 export function DashboardHeader() {
   const user = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+
+  const segments = pathname.replace(/^\/dashboard\/?/, "").split("/").filter(Boolean);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -27,13 +40,43 @@ export function DashboardHeader() {
 
   return (
     <header className="flex h-16 items-center justify-between border-b bg-card px-6">
-      <div />
+      {/* Breadcrumb */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            {segments.length > 0 ? (
+              <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
+            ) : (
+              <BreadcrumbPage>Dashboard</BreadcrumbPage>
+            )}
+          </BreadcrumbItem>
+          {segments.map((seg, i) => (
+            <React.Fragment key={seg}>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {i === segments.length - 1 ? (
+                  <BreadcrumbPage className="capitalize">{seg}</BreadcrumbPage>
+                ) : (
+                  <BreadcrumbLink href={`/dashboard/${segments.slice(0, i + 1).join("/")}`} className="capitalize">{seg}</BreadcrumbLink>
+                )}
+              </BreadcrumbItem>
+            </React.Fragment>
+          ))}
+        </BreadcrumbList>
+      </Breadcrumb>
+
       <div className="flex items-center gap-3">
+        <Button variant="ghost" size="sm" asChild className="hidden sm:flex gap-1.5 text-muted-foreground">
+          <Link href="/" target="_blank">
+            <ExternalLink className="size-3.5" /> View Store
+          </Link>
+        </Button>
+
+        <Separator orientation="vertical" className="h-6" />
+
         <Badge variant="secondary" className="hidden sm:inline-flex">
           {user?.roles.join(", ") || "No role"}
         </Badge>
-
-        <Separator orientation="vertical" className="h-6" />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
