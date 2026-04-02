@@ -14,7 +14,16 @@ import {
   Package,
   Heart,
   ArrowRight,
+  LayoutDashboard,
+  LogOut,
+  ShoppingCart,
 } from "lucide-react";
+
+export interface HeaderUser {
+  name: string;
+  email: string;
+  roles: string[];
+}
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
 import { useCategories, type ApiCategory } from "@/hooks/use-categories";
@@ -276,13 +285,18 @@ function MobileDrawer({
   categories,
   loading,
   cartCount,
+  user,
+  onLogout,
 }: {
   isOpen: boolean;
   onClose: () => void;
   categories: ApiCategory[];
   loading: boolean;
   cartCount: number;
+  user: HeaderUser | null;
+  onLogout: () => void;
 }) {
+  const isAdmin = user?.roles?.some((r) => r.toLowerCase() === "admin");
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
 
   useEffect(() => {
@@ -427,20 +441,58 @@ function MobileDrawer({
 
         {/* Bottom */}
         <div className="border-t border-border p-4 space-y-2">
-          <Link
-            href="/login"
-            onClick={onClose}
-            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold text-foreground border border-border hover:bg-muted transition"
-          >
-            Sign In
-          </Link>
-          <Link
-            href="/register"
-            onClick={onClose}
-            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary/90 transition"
-          >
-            Create Account
-          </Link>
+          {user ? (
+            <>
+              <div className="flex items-center gap-3 px-1 py-2">
+                <div className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{user.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                </div>
+              </div>
+              {isAdmin && (
+                <Link
+                  href="/dashboard"
+                  onClick={onClose}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold text-foreground border border-border hover:bg-muted transition"
+                >
+                  <LayoutDashboard size={15} /> Dashboard
+                </Link>
+              )}
+              <Link
+                href="/orders"
+                onClick={onClose}
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold text-foreground border border-border hover:bg-muted transition"
+              >
+                <ShoppingCart size={15} /> My Orders
+              </Link>
+              <button
+                onClick={() => { onClose(); onLogout(); }}
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950/30 transition"
+              >
+                <LogOut size={15} /> Sign Out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                onClick={onClose}
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold text-foreground border border-border hover:bg-muted transition"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/register"
+                onClick={onClose}
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary/90 transition"
+              >
+                Create Account
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -450,12 +502,34 @@ function MobileDrawer({
 /* ================================================================== */
 /*  Header                                                            */
 /* ================================================================== */
-export default function Header() {
+export default function Header({ user }: { user?: HeaderUser | null }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [wishlistOpen, setWishlistOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
   const { categories, loading: catLoading } = useCategories();
   const { items: wishlistItems } = useWishlist();
+
+  const isAdmin = user?.roles?.some((r) => r.toLowerCase() === "admin");
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  }
+
+  // Close account dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (accountRef.current && !accountRef.current.contains(e.target as Node)) {
+        setAccountOpen(false);
+      }
+    }
+    if (accountOpen) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [accountOpen]);
 
   const cartItems = useSelector((state: RootState) => state.cart.items);
   const cartCount = cartItems.reduce((sum, i) => sum + i.quantity, 0);
@@ -563,16 +637,54 @@ export default function Header() {
                 </button>
 
                 {/* Account */}
-                <Link
-                  href="/login"
-                  className="hidden sm:flex p-2.5 rounded-full hover:bg-muted transition group"
-                  title="Account"
-                >
-                  <User
-                    size={19}
-                    className="text-muted-foreground group-hover:text-primary transition-colors"
-                  />
-                </Link>
+                {user ? (
+                  <div className="relative hidden sm:block" ref={accountRef}>
+                    <button
+                      onClick={() => setAccountOpen((v) => !v)}
+                      className="flex items-center gap-1.5 p-2 rounded-full hover:bg-muted transition group"
+                      title="Account"
+                    >
+                      <div className="flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                        {user.name.charAt(0).toUpperCase()}
+                      </div>
+                      <ChevronDown size={12} className={`text-muted-foreground transition-transform duration-200 ${accountOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    {accountOpen && (
+                      <div className="absolute right-0 top-full mt-2 w-56 bg-card rounded-xl shadow-2xl shadow-black/8 ring-1 ring-black/5 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                        <div className="px-4 py-3 border-b border-border">
+                          <p className="text-sm font-medium truncate">{user.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                        </div>
+                        <div className="py-1">
+                          {isAdmin && (
+                            <Link href="/dashboard" onClick={() => setAccountOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground/80 hover:bg-muted transition">
+                              <LayoutDashboard size={15} /> Dashboard
+                            </Link>
+                          )}
+                          <Link href="/orders" onClick={() => setAccountOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground/80 hover:bg-muted transition">
+                            <ShoppingCart size={15} /> My Orders
+                          </Link>
+                        </div>
+                        <div className="border-t border-border py-1">
+                          <button onClick={() => { setAccountOpen(false); handleLogout(); }} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition">
+                            <LogOut size={15} /> Sign Out
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <Link
+                    href="/login"
+                    className="hidden sm:flex p-2.5 rounded-full hover:bg-muted transition group"
+                    title="Account"
+                  >
+                    <User
+                      size={19}
+                      className="text-muted-foreground group-hover:text-primary transition-colors"
+                    />
+                  </Link>
+                )}
 
                 {/* Cart */}
                 <Link
@@ -606,6 +718,8 @@ export default function Header() {
         categories={categories}
         loading={catLoading}
         cartCount={cartCount}
+        user={user ?? null}
+        onLogout={handleLogout}
       />
 
       {/* Wishlist sidebar */}
