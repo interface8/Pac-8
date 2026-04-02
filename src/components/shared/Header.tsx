@@ -30,6 +30,8 @@ import { useCategories, type ApiCategory } from "@/hooks/use-categories";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import WishlistSidebar from "@/components/wishlist/WishlistSidebar";
 import { useWishlist } from "@/hooks/use-wishlist";
+import { toast } from "sonner";
+import { logout } from "@/app/actions/auth";
 
 /* ------------------------------------------------------------------ */
 /*  CategoryMega – desktop hover mega-menu                            */
@@ -462,7 +464,14 @@ function MobileDrawer({
                 </Link>
               )}
               <Link
-                href="/orders"
+                href="/account"
+                onClick={onClose}
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold text-foreground border border-border hover:bg-muted transition"
+              >
+                <User size={15} /> My Account
+              </Link>
+              <Link
+                href="/account/orders"
                 onClick={onClose}
                 className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold text-foreground border border-border hover:bg-muted transition"
               >
@@ -508,17 +517,16 @@ export default function Header({ user }: { user?: HeaderUser | null }) {
   const [wishlistOpen, setWishlistOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
   const { categories, loading: catLoading } = useCategories();
   const { items: wishlistItems } = useWishlist();
 
   const isAdmin = user?.roles?.some((r) => r.toLowerCase() === "admin");
 
-  async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
-  }
+  const handleLogout = async () => {
+    await logout();
+    toast.success("Signed out successfully");
+    window.location.href = "/";
+  };
 
   // Close account dropdown on outside click
   useEffect(() => {
@@ -661,7 +669,10 @@ export default function Header({ user }: { user?: HeaderUser | null }) {
                               <LayoutDashboard size={15} /> Dashboard
                             </Link>
                           )}
-                          <Link href="/orders" onClick={() => setAccountOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground/80 hover:bg-muted transition">
+                          <Link href="/account" onClick={() => setAccountOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground/80 hover:bg-muted transition">
+                            <User size={15} /> My Account
+                          </Link>
+                          <Link href="/account/orders" onClick={() => setAccountOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground/80 hover:bg-muted transition">
                             <ShoppingCart size={15} /> My Orders
                           </Link>
                         </div>

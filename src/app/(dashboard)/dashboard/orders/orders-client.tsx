@@ -26,6 +26,7 @@ import {
   Truck, Package, CreditCard, Clock, ShoppingCart, Ban, RotateCcw,
   MapPin,
 } from "lucide-react";
+import { toast } from "sonner";
 
 type OrderStatus = "PENDING" | "CONFIRMED" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED" | "REFUNDED";
 type PaymentStatus = "AWAITING_PAYMENT" | "PAID" | "FAILED" | "REFUNDED" | "PARTIALLY_REFUNDED";
@@ -155,7 +156,9 @@ export function OrdersClient() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
       queryClient.invalidateQueries({ queryKey: ["admin-order"] });
+      toast.success("Order updated");
     },
+    onError: (err: Error) => toast.error(err.message),
   });
 
   const orders = data?.data ?? [];
@@ -449,8 +452,14 @@ function UpdateOrderModal({ order, onClose, onSuccess }: { order: OrderDto; onCl
 
   const mutation = useMutation({
     mutationFn: (data: Record<string, unknown>) => updateOrderApi(order.id, data),
-    onSuccess: () => onSuccess(),
-    onError: (err: Error) => setUpdateError(err.message),
+    onSuccess: () => {
+      toast.success("Order updated successfully");
+      onSuccess();
+    },
+    onError: (err: Error) => {
+      setUpdateError(err.message);
+      toast.error(err.message);
+    },
   });
 
   function handleSubmit(e: React.FormEvent) {

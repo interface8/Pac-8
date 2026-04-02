@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,19 +24,23 @@ import {
 import { LogOut, User, ChevronDown, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import React from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { logout } from "@/app/actions/auth";
 
 export function DashboardHeader() {
   const user = useAuth();
-  const router = useRouter();
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await logout();
+    toast.success("Signed out successfully");
+    router.push("/");
+    router.refresh();
+  };
 
   const segments = pathname.replace(/^\/dashboard\/?/, "").split("/").filter(Boolean);
-
-  async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
-  }
 
   return (
     <header className="flex h-16 items-center justify-between border-b bg-card px-6">

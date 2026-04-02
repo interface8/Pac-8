@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
 
     return jsonResponse({
       message: "Login successful",
+      roles: user.roles?.map((ur: { role: { name: string } }) => ur.role.name) ?? [],
       user: {
         id: user.id,
         email: user.email,

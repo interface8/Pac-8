@@ -36,6 +36,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 
 interface UserDto {
   id: string;
@@ -89,8 +90,10 @@ export function UsersClient() {
     mutationFn: deleteUserApi,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast.success("User deleted");
       setDeleteTarget(null);
     },
+    onError: (err: Error) => toast.error(err.message),
   });
 
   function handleEdit(user: UserDto) {

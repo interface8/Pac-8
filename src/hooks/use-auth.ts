@@ -40,11 +40,22 @@ export function useAuth() {
       if (!res.ok) {
         const errorMessage = data.message ?? "Login failed";
         setError(errorMessage);
+        toast.error(errorMessage);
         return { success: false, message: errorMessage };
       }
 
       toast.success(data.message ?? "Login successful");
-      router.push("/dashboard");
+
+      // Redirect: admin → dashboard, regular user → home (or callback URL)
+      const params = new URLSearchParams(window.location.search);
+      const callbackUrl = params.get("callbackUrl");
+      if (callbackUrl) {
+        router.push(callbackUrl);
+      } else if (data.roles?.includes("admin")) {
+        router.push("/dashboard");
+      } else {
+        router.push("/account");
+      }
       router.refresh();
       return { success: true };
     } catch (err) {
@@ -72,11 +83,12 @@ export function useAuth() {
       if (!res.ok) {
         const errorMessage = data.message ?? "Registration failed";
         setError(errorMessage);
+        toast.error(errorMessage);
         return { success: false, message: errorMessage };
       }
 
       toast.success(data.message ?? "Registration successful");
-      router.push("/dashboard");
+      router.push("/account");
       router.refresh();
       return { success: true };
     } catch (err) {

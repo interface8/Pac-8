@@ -43,6 +43,7 @@ import {
   FolderTree,
   ChevronRight,
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface CategoryDto {
   id: string;
@@ -136,10 +137,14 @@ export function CategoriesClient() {
       queryClient.invalidateQueries({ queryKey: ["admin-categories"] });
       queryClient.invalidateQueries({ queryKey: ["admin-categories-tree"] });
       queryClient.invalidateQueries({ queryKey: ["admin-categories-flat"] });
+      toast.success("Category deleted");
       setDeleteTarget(null);
       setDeleteError("");
     },
-    onError: (err: Error) => setDeleteError(err.message),
+    onError: (err: Error) => {
+      setDeleteError(err.message);
+      toast.error(err.message);
+    },
   });
 
   function handleCreate() {
@@ -370,9 +375,13 @@ function CategoryForm({
       queryClient.invalidateQueries({ queryKey: ["admin-categories-tree"] });
       queryClient.invalidateQueries({ queryKey: ["admin-categories-flat"] });
       queryClient.invalidateQueries({ queryKey: ["admin-categories-list"] });
+      toast.success(isEditing ? "Category updated" : "Category created");
       onClose();
     },
-    onError: (err: Error) => setFormError(err.message),
+    onError: (err: Error) => {
+      setFormError(err.message);
+      toast.error(err.message);
+    },
   });
 
   function handleSubmit(e: React.FormEvent) {

@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface PermissionDto {
   id: string;
@@ -68,8 +69,10 @@ export function PermissionsClient() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["permissions"] });
+      toast.success("Permission deleted");
       setDeleteTarget(null);
     },
+    onError: (err: Error) => toast.error(err.message),
   });
 
   // Group permissions by resource
@@ -263,9 +266,13 @@ function PermissionFormInner({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["permissions"] });
+      toast.success(isEditing ? "Permission updated" : "Permission created");
       onClose();
     },
-    onError: (err: Error) => setError(err.message),
+    onError: (err: Error) => {
+      setError(err.message);
+      toast.error(err.message);
+    },
   });
 
   function handleSubmit(e: React.FormEvent) {

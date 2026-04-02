@@ -3,7 +3,8 @@ import { jwtVerify } from "jose";
 
 const AUTH_COOKIE_NAME = "pac8_token";
 const PUBLIC_ROUTES = ["/login", "/register", "/forgot-password"];
-const PROTECTED_ROUTE_PREFIX = "/dashboard";
+const ADMIN_ROUTE_PREFIX = "/dashboard";
+const AUTH_ROUTE_PREFIX = "/account";
 
 function getSecret() {
   const secret = process.env.JWT_SECRET;
@@ -38,9 +39,9 @@ export async function middleware(request: NextRequest) {
       response.headers.set("x-user-id", payload.sub as string);
       response.headers.set("x-user-email", (payload.email as string) ?? "");
 
-      // If authenticated user tries to access public routes, redirect to dashboard
+      // If authenticated user tries to access login/register, redirect to home
       if (PUBLIC_ROUTES.includes(pathname)) {
-        return NextResponse.redirect(new URL("/dashboard", request.url));
+        return NextResponse.redirect(new URL("/", request.url));
       }
 
       return response;
@@ -50,8 +51,8 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // ─── Protect dashboard routes ─────────────────────────
-  if (!isAuthenticated && pathname.startsWith(PROTECTED_ROUTE_PREFIX)) {
+  // ─── Protect dashboard and account routes ─────────────
+  if (!isAuthenticated && (pathname.startsWith(ADMIN_ROUTE_PREFIX) || pathname.startsWith(AUTH_ROUTE_PREFIX))) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);

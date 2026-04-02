@@ -24,6 +24,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Printer, Star, Wallet, Package, Search, Truck } from "lucide-react";
+import { toast } from "sonner";
 
 type ProductStatus = "DRAFT" | "ACTIVE" | "INACTIVE" | "ARCHIVED";
 
@@ -177,9 +178,13 @@ export function ProductFormModal({ product, categories, onClose }: Props) {
       isEditing ? updateProduct(product!.id, data) : createProduct(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      toast.success(isEditing ? "Product updated" : "Product created");
       onClose();
     },
-    onError: (err: Error) => setFormError(err.message),
+    onError: (err: Error) => {
+      setFormError(err.message);
+      toast.error(err.message);
+    },
   });
 
   function handleSubmit(e: React.FormEvent) {

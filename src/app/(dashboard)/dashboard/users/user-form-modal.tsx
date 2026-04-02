@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
 
 interface UserDto {
   id: string;
@@ -73,10 +74,12 @@ export function UserFormModal({ user, onClose }: UserFormModalProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast.success(isEditing ? "User updated" : "User created");
       onClose();
     },
     onError: (err: Error) => {
       setError(err.message);
+      toast.error(err.message);
     },
   });
 

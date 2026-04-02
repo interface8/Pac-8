@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface RoleDto {
   id: string;
@@ -88,8 +89,10 @@ export function RolesClient() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roles"] });
+      toast.success("Role deleted");
       setDeleteTarget(null);
     },
+    onError: (err: Error) => toast.error(err.message),
   });
 
   return (
@@ -277,9 +280,13 @@ function RoleFormInner({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roles"] });
+      toast.success(isEditing ? "Role updated" : "Role created");
       onClose();
     },
-    onError: (err: Error) => setError(err.message),
+    onError: (err: Error) => {
+      setError(err.message);
+      toast.error(err.message);
+    },
   });
 
   function togglePermission(id: string) {

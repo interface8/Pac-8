@@ -10,4 +10,5 @@ export const AUTH_COOKIE_OPTIONS = {
 };
 
 export const PUBLIC_ROUTES = ["/login", "/register", "/forgot-password"];
-export const PROTECTED_ROUTE_PREFIX = "/dashboard";
+export const ADMIN_ROUTE_PREFIX = "/dashboard";
+export const AUTH_ROUTE_PREFIX = "/account";

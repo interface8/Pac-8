@@ -15,6 +15,11 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
+  const isAdmin = user.roles.some((r) => r.toLowerCase() === "admin");
+  if (!isAdmin) {
+    redirect("/account");
+  }
+
   return (
     <AuthProvider user={user}>
       <div className="flex h-screen bg-muted/40">

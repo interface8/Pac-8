@@ -55,6 +55,7 @@ import {
   Package,
   AlertTriangle,
 } from "lucide-react";
+import { toast } from "sonner";
 
 type ProductStatus = "DRAFT" | "ACTIVE" | "INACTIVE" | "ARCHIVED";
 
@@ -152,8 +153,10 @@ export function ProductsClient() {
     mutationFn: deleteProductApi,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      toast.success("Product deleted");
       setDeleteTarget(null);
     },
+    onError: (err: Error) => toast.error(err.message),
   });
 
   function handleEdit(product: ProductDto) {
