@@ -305,8 +305,8 @@ export default function ProductDetailPage({
                 <h3 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
                   <Layers size={14} className="text-primary" /> Bulk Pricing
                 </h3>
-                <div className="bg-card border border-border rounded-xl overflow-hidden">
-                  <table className="w-full text-sm">
+                <div className="bg-card border border-border rounded-xl overflow-x-auto">
+                  <table className="w-full text-sm min-w-[320px]">
                     <thead>
                       <tr className="bg-muted/50">
                         <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs">Quantity</th>

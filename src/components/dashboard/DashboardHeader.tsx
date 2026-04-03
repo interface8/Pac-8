@@ -13,13 +13,13 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { LogOut, User, ChevronDown, ExternalLink } from "lucide-react";
+import { LogOut, User, ChevronDown, ExternalLink, Menu } from "lucide-react";
 import Link from "next/link";
 import React, { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { logout } from "@/app/actions/auth";
 
-export function DashboardHeader() {
+export function DashboardHeader({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
   const user = useAuth();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -46,9 +46,15 @@ export function DashboardHeader() {
   const segments = pathname.replace(/^\/dashboard\/?/, "").split("/").filter(Boolean);
 
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-card px-6">
-      {/* Breadcrumb */}
-      <Breadcrumb>
+    <header className="flex h-16 items-center justify-between border-b bg-card px-4 sm:px-6">
+      <div className="flex items-center gap-3">
+        {/* Mobile hamburger */}
+        <Button variant="ghost" size="icon" className="lg:hidden" onClick={onToggleSidebar}>
+          <Menu className="size-5" />
+        </Button>
+
+        {/* Breadcrumb */}
+        <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
             {segments.length > 0 ? (
@@ -71,6 +77,7 @@ export function DashboardHeader() {
           ))}
         </BreadcrumbList>
       </Breadcrumb>
+      </div>
 
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" asChild className="hidden sm:flex gap-1.5 text-muted-foreground">

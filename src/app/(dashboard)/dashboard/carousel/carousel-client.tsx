@@ -331,7 +331,7 @@ export function CarouselClient() {
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative w-72">
+          <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search slides..."
@@ -368,6 +368,7 @@ export function CarouselClient() {
       {/* Table */}
       <Card>
         <CardContent className="p-0">
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -467,6 +468,7 @@ export function CarouselClient() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 

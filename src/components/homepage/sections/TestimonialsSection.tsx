@@ -44,7 +44,7 @@ export default function TestimonialsSection() {
   const { testimonials: dbTestimonials, loading } = useTestimonials();
   const testimonials = dbTestimonials.length > 0 ? dbTestimonials : fallbackTestimonials;
   return (
-    <section className="py-20 bg-muted/50 -mx-4 sm:-mx-6 px-4 sm:px-6">
+    <section className="py-20 bg-muted/50 px-4 sm:px-6 overflow-hidden">
       <div className="max-w-[1400px] mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -56,7 +56,7 @@ export default function TestimonialsSection() {
           <span className="text-sm font-semibold text-primary uppercase tracking-wider">
             Testimonials
           </span>
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mt-3">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mt-3">
             Loved by businesses like yours
           </h2>
           <p className="text-muted-foreground mt-3 max-w-lg mx-auto">

@@ -74,7 +74,7 @@ export default function TargetAudience() {
         <span className="text-sm font-semibold text-primary uppercase tracking-wider">
           Built for you
         </span>
-        <h2 className="text-3xl md:text-4xl font-bold text-foreground mt-3">
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mt-3">
           Who uses PAC-8?
         </h2>
         <p className="text-muted-foreground mt-3 max-w-lg mx-auto">

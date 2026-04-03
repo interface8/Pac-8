@@ -41,7 +41,7 @@ const itemVariants = {
 
 export default function HowItWorks() {
   return (
-    <section className="py-20 bg-muted/50 -mx-4 sm:-mx-6 px-4 sm:px-6">
+    <section className="py-20 bg-muted/50 px-4 sm:px-6 overflow-hidden">
       <div className="max-w-[1400px] mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -53,7 +53,7 @@ export default function HowItWorks() {
           <span className="text-sm font-semibold text-primary uppercase tracking-wider">
             How it works
           </span>
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mt-3">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mt-3">
             Three simple steps
           </h2>
           <p className="text-muted-foreground mt-3 max-w-lg mx-auto">
@@ -75,7 +75,7 @@ export default function HowItWorks() {
               className="relative bg-card rounded-2xl p-8 border border-border shadow-sm hover:shadow-md transition-shadow group"
             >
               {/* Step number */}
-              <span className="absolute top-6 right-6 text-5xl font-extrabold text-muted/80 select-none">
+              <span className="absolute top-6 right-6 text-4xl sm:text-5xl font-extrabold text-muted/80 select-none">
                 {step.step}
               </span>
 

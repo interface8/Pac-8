@@ -54,11 +54,11 @@ const navSections: NavSection[] = [
   },
 ];
 
-export function DashboardSidebar() {
+export function DashboardSidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const pathname = usePathname();
 
   return (
-    <aside className="flex w-64 flex-col border-r bg-sidebar text-sidebar-foreground">
+    <aside className="flex w-64 h-full flex-col border-r bg-sidebar text-sidebar-foreground">
       <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-6">
         <Link href="/dashboard" className="text-xl font-bold text-sidebar-primary">
           Pac8
@@ -70,7 +70,7 @@ export function DashboardSidebar() {
 
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4">
         {navSections.map((section) => (
-          <NavSection key={section.title} section={section} pathname={pathname} />
+          <NavSection key={section.title} section={section} pathname={pathname} onNavigate={onNavigate} />
         ))}
       </nav>
 
@@ -82,14 +82,14 @@ export function DashboardSidebar() {
   );
 }
 
-function NavSection({ section, pathname }: { section: NavSection; pathname: string }) {
+function NavSection({ section, pathname, onNavigate }: { section: NavSection; pathname: string; onNavigate?: () => void }) {
   return (
     <div className="space-y-1">
       <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
         {section.title}
       </p>
       {section.items.map((item) => (
-        <NavItem key={item.href} item={item} isActive={pathname === item.href} />
+        <NavItem key={item.href} item={item} isActive={pathname === item.href} onNavigate={onNavigate} />
       ))}
     </div>
   );
@@ -98,9 +98,11 @@ function NavSection({ section, pathname }: { section: NavSection; pathname: stri
 function NavItem({
   item,
   isActive,
+  onNavigate,
 }: {
   item: NavSection["items"][number];
   isActive: boolean;
+  onNavigate?: () => void;
 }) {
   const hasAccess = usePermission(item.permission ?? "");
 
@@ -117,7 +119,7 @@ function NavItem({
       )}
       asChild
     >
-      <Link href={item.href}>
+      <Link href={item.href} onClick={onNavigate}>
         <Icon className="size-4" />
         {item.label}
       </Link>

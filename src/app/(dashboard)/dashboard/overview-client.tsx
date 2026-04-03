@@ -225,6 +225,7 @@ export function DashboardOverview() {
             </Button>
           </CardHeader>
           <CardContent className="p-0">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -269,6 +270,7 @@ export function DashboardOverview() {
                 )}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
 
@@ -313,6 +315,7 @@ export function DashboardOverview() {
           </Button>
         </CardHeader>
         <CardContent className="p-0">
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -351,6 +354,7 @@ export function DashboardOverview() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

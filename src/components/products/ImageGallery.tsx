@@ -84,7 +84,7 @@ export default function ImageGallery({
         )}
 
         {/* Zoom indicator */}
-        <div className="absolute bottom-4 right-4 bg-card/80 backdrop-blur-sm rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+        <div className="absolute bottom-4 right-4 bg-card/80 backdrop-blur-sm rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hidden sm:flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
           <ZoomIn size={14} />
           Hover to zoom
         </div>
@@ -97,7 +97,7 @@ export default function ImageGallery({
                 e.stopPropagation();
                 goPrev();
               }}
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-card/80 backdrop-blur-sm shadow-md flex items-center justify-center text-foreground hover:bg-card transition opacity-0 group-hover:opacity-100 z-10"
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-card/80 backdrop-blur-sm shadow-md flex items-center justify-center text-foreground hover:bg-card transition opacity-100 sm:opacity-0 sm:group-hover:opacity-100 z-10"
             >
               <ChevronLeft size={18} />
             </button>
@@ -106,7 +106,7 @@ export default function ImageGallery({
                 e.stopPropagation();
                 goNext();
               }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-card/80 backdrop-blur-sm shadow-md flex items-center justify-center text-foreground hover:bg-card transition opacity-0 group-hover:opacity-100 z-10"
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-card/80 backdrop-blur-sm shadow-md flex items-center justify-center text-foreground hover:bg-card transition opacity-100 sm:opacity-0 sm:group-hover:opacity-100 z-10"
             >
               <ChevronRight size={18} />
             </button>
