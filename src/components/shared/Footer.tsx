@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Package, Mail, Phone, MapPin } from "lucide-react";
+import Image from "next/image";
+import { Mail, Phone, MapPin } from "lucide-react";
 
 const productLinks = [
   { href: "/products", label: "All Products" },
@@ -35,9 +36,13 @@ export default function Footer() {
           {/* Brand */}
           <div className="lg:col-span-1">
             <Link href="/" className="flex items-center gap-2.5 mb-5">
-              <div className="bg-primary p-2 rounded-xl">
-                <Package className="text-primary-foreground" size={20} />
-              </div>
+              <Image
+                src="/images/pac8-logo.jpeg"
+                alt="PAC-8 Logo"
+                width={40}
+                height={40}
+                className="rounded-xl"
+              />
               <span className="text-xl font-extrabold tracking-tight">
                 PAC<span className="text-primary">-8</span>
               </span>

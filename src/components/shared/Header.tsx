@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   Search,
@@ -11,7 +12,6 @@ import {
   Menu,
   X,
   ChevronRight,
-  Package,
   Heart,
   ArrowRight,
   LayoutDashboard,
@@ -324,9 +324,13 @@ function MobileDrawer({
             onClick={onClose}
             className="flex items-center gap-2.5"
           >
-            <div className="bg-gradient-to-br from-primary to-primary/80 p-1.5 rounded-xl">
-              <Package className="text-primary-foreground" size={16} />
-            </div>
+            <Image
+              src="/images/pac8-logo.jpeg"
+              alt="PAC-8 Logo"
+              width={34}
+              height={34}
+              className="rounded-xl"
+            />
             <span className="text-lg font-extrabold tracking-tight text-foreground">
               PAC<span className="text-primary">-8</span>
             </span>
@@ -582,12 +586,13 @@ export default function Header({ user }: { user?: HeaderUser | null }) {
                   href="/"
                   className="flex items-center gap-2 shrink-0 group"
                 >
-                  <div className="bg-gradient-to-br from-primary to-primary/80 p-2 rounded-xl shadow-lg shadow-primary/20 group-hover:shadow-primary/30 transition-shadow">
-                    <Package
-                      className="text-primary-foreground"
-                      size={18}
-                    />
-                  </div>
+                  <Image
+                    src="/images/pac8-logo.jpeg"
+                    alt="PAC-8 Logo"
+                    width={40}
+                    height={40}
+                    className="rounded-xl"
+                  />
                   <span className="text-xl font-extrabold tracking-tight text-foreground">
                     PAC<span className="text-primary">-8</span>
                   </span>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { usePermission } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -60,8 +61,15 @@ export function DashboardSidebar({ onNavigate }: { onNavigate?: () => void } = {
   return (
     <aside className="flex w-64 h-full flex-col border-r bg-sidebar text-sidebar-foreground">
       <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-6">
-        <Link href="/dashboard" className="text-xl font-bold text-sidebar-primary">
-          Pac8
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <Image
+            src="/images/pac8-logo.jpeg"
+            alt="PAC-8 Logo"
+            width={32}
+            height={32}
+            className="rounded-lg"
+          />
+          <span className="text-xl font-bold text-sidebar-primary">PAC<span className="text-sidebar-foreground/70">-8</span></span>
         </Link>
         <Link href="/" title="Go to site">
           <Home className="size-4 text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors" />

@@ -2,8 +2,9 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
-  Mail, Lock, Eye, EyeOff, Package, AlertCircle, Loader2,
+  Mail, Lock, Eye, EyeOff, AlertCircle, Loader2,
   ArrowRight, User, Phone, CheckCircle2, XCircle,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -64,9 +65,13 @@ export default function RegisterPage() {
         <div className="p-7 sm:p-9">
           {/* Logo */}
           <div className="flex flex-col items-center mb-7">
-            <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30 mb-4">
-              <Package size={28} className="text-primary-foreground" />
-            </div>
+            <Image
+              src="/images/pac8-logo.jpeg"
+              alt="PAC-8 Logo"
+              width={56}
+              height={56}
+              className="rounded-2xl shadow-lg shadow-primary/30 mb-4"
+            />
             <h1 className="text-2xl font-bold text-foreground tracking-tight">Create your account</h1>
             <p className="text-sm text-muted-foreground mt-1">Join PAC-8 and start ordering today</p>
           </div>
