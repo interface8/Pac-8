@@ -409,7 +409,7 @@ export default function CheckoutPage() {
                   <div className="bg-card rounded-xl border border-border p-5 space-y-4">
                     <h2 className="text-lg font-semibold text-foreground">Contact Information</h2>
                     <p className="text-sm text-muted-foreground">
-                      Checking out as guest. <Link href="/login" className="text-primary font-medium hover:underline">Sign in</Link> for a faster experience.
+                      Checking out as guest. <Link href="/login?callbackUrl=/checkout" className="text-primary font-medium hover:underline">Sign in</Link> for a faster experience.
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>

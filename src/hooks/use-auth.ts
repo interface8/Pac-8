@@ -46,7 +46,7 @@ export function useAuth() {
 
       toast.success(data.message ?? "Login successful");
 
-      // Redirect: admin → dashboard, regular user → home (or callback URL)
+      // Redirect: admin → dashboard, regular user → homepage (or callback URL)
       const params = new URLSearchParams(window.location.search);
       const callbackUrl = params.get("callbackUrl");
       if (callbackUrl) {
@@ -54,7 +54,7 @@ export function useAuth() {
       } else if (data.roles?.includes("admin")) {
         router.push("/dashboard");
       } else {
-        router.push("/account");
+        router.push("/");
       }
       router.refresh();
       return { success: true };

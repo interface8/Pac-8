@@ -6,14 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
@@ -23,21 +15,32 @@ import {
 } from "@/components/ui/breadcrumb";
 import { LogOut, User, ChevronDown, ExternalLink } from "lucide-react";
 import Link from "next/link";
-import React from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { logout } from "@/app/actions/auth";
 
 export function DashboardHeader() {
   const user = useAuth();
   const pathname = usePathname();
-  const router = useRouter();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuOpen]);
 
   const handleLogout = async () => {
+    setMenuOpen(false);
     await logout();
     toast.success("Signed out successfully");
-    router.push("/");
-    router.refresh();
+    window.location.href = "/";
   };
 
   const segments = pathname.replace(/^\/dashboard\/?/, "").split("/").filter(Boolean);
@@ -82,23 +85,31 @@ export function DashboardHeader() {
           {user?.roles.join(", ") || "No role"}
         </Badge>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="gap-2">
-              <User className="size-4" />
-              <span className="hidden sm:inline">{user?.name}</span>
-              <ChevronDown className="size-3" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
-              <LogOut className="mr-2 size-4" />
-              Sign Out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div ref={menuRef} className="relative">
+          <Button
+            variant="ghost"
+            className="gap-2"
+            onClick={() => setMenuOpen((prev) => !prev)}
+          >
+            <User className="size-4" />
+            <span className="hidden sm:inline">{user?.name}</span>
+            <ChevronDown className="size-3" />
+          </Button>
+
+          {menuOpen && (
+            <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-md border bg-popover p-1 shadow-md animate-in fade-in-0 zoom-in-95">
+              <div className="px-2 py-1.5 text-sm font-medium">{user?.email}</div>
+              <div className="bg-border -mx-1 my-1 h-px" />
+              <button
+                onClick={handleLogout}
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <LogOut className="size-4" />
+                Sign Out
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
