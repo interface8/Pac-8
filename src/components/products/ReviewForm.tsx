@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Send, LogIn } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import StarRating from "@/components/ui/star-rating";
 import { useSubmitReview, type Review } from "@/hooks/use-reviews";
 
@@ -17,6 +18,7 @@ export default function ReviewForm({
   onReviewSubmitted,
 }: ReviewFormProps) {
   const user = useAuth();
+  const pathname = usePathname();
   const [rating, setRating] = useState(0);
   const [title, setTitle] = useState("");
   const [comment, setComment] = useState("");
@@ -30,7 +32,7 @@ export default function ReviewForm({
           Log in to write a review
         </p>
         <Link
-          href="/login"
+          href={`/login?callbackUrl=${encodeURIComponent(pathname)}`}
           className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
         >
           Log In
