@@ -41,8 +41,8 @@ export default function WishlistSidebar({
     toast.success(`${item.productName} added to cart`);
   };
 
-  const handleRemove = async (item: WishlistItem) => {
-    await remove(item.id);
+  const handleRemove = (item: WishlistItem) => {
+    remove(item.id);
     toast.success(`Removed from wishlist`);
   };
 

@@ -41,22 +41,15 @@ export default function ProductDetailPage({
   const { items: wishlistItems, toggle: toggleWishlist } = useWishlist();
 
   const [quantity, setQuantity] = useState(1);
-  const [wishlistLoading, setWishlistLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"description" | "specs" | "shipping">("description");
 
   const isWishlisted = product ? wishlistItems.some((w) => w.productId === product.id) : false;
 
-  const handleToggleWishlist = async () => {
-    if (!product || wishlistLoading) return;
-    setWishlistLoading(true);
-    try {
-      const added = await toggleWishlist(product.id);
-      toast.success(added ? "Added to wishlist" : "Removed from wishlist");
-    } catch {
-      toast.error("Failed to update wishlist");
-    } finally {
-      setWishlistLoading(false);
-    }
+  const handleToggleWishlist = () => {
+    if (!product) return;
+    const willBeAdded = !wishlistItems.some((w) => w.productId === product.id);
+    toggleWishlist(product.id);
+    toast.success(willBeAdded ? "Added to wishlist" : "Removed from wishlist");
   };
 
   if (loading) {
@@ -347,47 +340,48 @@ export default function ProductDetailPage({
 
             {/* Quantity & Add to Cart */}
             <div>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                <div className="flex items-center border border-border rounded-xl overflow-hidden">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+                <div className="flex items-center justify-center border border-border rounded-xl overflow-hidden self-start">
                   <button
                     onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                    className="w-11 h-11 flex items-center justify-center hover:bg-muted transition text-muted-foreground"
+                    className="w-12 h-12 sm:w-11 sm:h-11 flex items-center justify-center hover:bg-muted transition text-muted-foreground"
                     disabled={quantity <= 1}
                   >
                     <Minus size={16} />
                   </button>
-                  <span className="w-14 h-11 flex items-center justify-center text-sm font-semibold border-x border-border">
+                  <span className="w-16 h-12 sm:w-14 sm:h-11 flex items-center justify-center text-sm font-semibold border-x border-border">
                     {quantity}
                   </span>
                   <button
                     onClick={() => setQuantity((q) => Math.min(product.quantity, q + 1))}
-                    className="w-11 h-11 flex items-center justify-center hover:bg-muted transition text-muted-foreground"
+                    className="w-12 h-12 sm:w-11 sm:h-11 flex items-center justify-center hover:bg-muted transition text-muted-foreground"
                     disabled={quantity >= product.quantity}
                   >
                     <Plus size={16} />
                   </button>
                 </div>
 
-                <button
-                  onClick={handleAddToCart}
-                  disabled={product.quantity === 0}
-                  className="flex-1 h-12 bg-primary hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed text-primary-foreground font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors"
-                >
-                  <ShoppingCart size={18} />
-                  Add to Cart — ₦{totalPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                </button>
+                <div className="flex gap-3 w-full sm:flex-1">
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={product.quantity === 0}
+                    className="flex-1 h-14 sm:h-12 bg-primary hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed text-primary-foreground font-semibold text-base sm:text-sm rounded-xl flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <ShoppingCart size={18} />
+                    Add to Cart — ₦{totalPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                  </button>
 
-                <button
-                  onClick={handleToggleWishlist}
-                  disabled={wishlistLoading}
-                  className={`h-12 w-12 border rounded-xl flex items-center justify-center transition-colors shrink-0 disabled:opacity-50 ${
-                    isWishlisted
-                      ? "bg-red-50 border-red-200 text-red-500"
-                      : "border-border text-muted-foreground hover:bg-red-50 hover:border-red-200 hover:text-red-500"
-                  }`}
-                >
-                  <Heart size={20} fill={isWishlisted ? "currentColor" : "none"} />
-                </button>
+                  <button
+                    onClick={handleToggleWishlist}
+                    className={`h-14 w-14 sm:h-12 sm:w-12 border rounded-xl flex items-center justify-center transition-colors shrink-0 disabled:opacity-50 ${
+                      isWishlisted
+                        ? "bg-red-50 border-red-200 text-red-500"
+                        : "border-border text-muted-foreground hover:bg-red-50 hover:border-red-200 hover:text-red-500"
+                    }`}
+                  >
+                    <Heart size={20} fill={isWishlisted ? "currentColor" : "none"} />
+                  </button>
+                </div>
               </div>
 
               {/* Customize CTA */}

@@ -64,7 +64,7 @@ export default function ImageGallery({
           src={selectedImage.url}
           alt={selectedImage.altText ?? productName}
           fill
-          className={`object-contain p-6 transition-transform duration-200 ${
+          className={`object-cover transition-transform duration-200 ${
             isZoomed ? "scale-[2.5]" : "scale-100"
           }`}
           style={
