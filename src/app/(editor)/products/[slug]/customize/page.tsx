@@ -26,6 +26,7 @@ import {
   AlignRight,
   Upload,
   Copy,
+  X,
 } from "lucide-react";
 import { useProduct } from "@/hooks/use-products";
 import { toast } from "react-toastify";
@@ -321,8 +322,6 @@ export default function CustomizeProductPage({
     canvasHeight: 400,
   });
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
-  const [history, setHistory] = useState<DesignState[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
   const [zoom, setZoom] = useState(1);
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -333,25 +332,37 @@ export default function CustomizeProductPage({
 
   const selectedElement = design.elements.find((el) => el.id === selectedElementId) ?? null;
 
-  // ─── History ───────────────────────────────────────
+  // ─── History (refs for instant access, no stale closures) ───
+  const historyRef = useRef<DesignState[]>([design]);
+  const historyIndexRef = useRef(0);
+  // Re-render trigger — incremented when undo/redo changes to update button disabled state
+  const [, setHistoryTick] = useState(0);
+  const tickRender = () => setHistoryTick((t) => t + 1);
+
   const pushHistory = useCallback((newDesign: DesignState) => {
-    setHistory((prev) => [...prev.slice(0, historyIndex + 1), newDesign]);
-    setHistoryIndex((prev) => prev + 1);
-  }, [historyIndex]);
+    const idx = historyIndexRef.current;
+    historyRef.current = [...historyRef.current.slice(0, idx + 1), newDesign];
+    historyIndexRef.current = idx + 1;
+    tickRender();
+  }, []);
 
-  const undo = () => {
-    if (historyIndex > 0) {
-      setHistoryIndex(historyIndex - 1);
-      setDesign(history[historyIndex - 1]);
+  const undo = useCallback(() => {
+    const idx = historyIndexRef.current;
+    if (idx > 0) {
+      historyIndexRef.current = idx - 1;
+      setDesign(historyRef.current[idx - 1]);
+      tickRender();
     }
-  };
+  }, []);
 
-  const redo = () => {
-    if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1);
-      setDesign(history[historyIndex + 1]);
+  const redo = useCallback(() => {
+    const idx = historyIndexRef.current;
+    if (idx < historyRef.current.length - 1) {
+      historyIndexRef.current = idx + 1;
+      setDesign(historyRef.current[idx + 1]);
+      tickRender();
     }
-  };
+  }, []);
 
   const updateDesign = useCallback(
     (updater: (prev: DesignState) => DesignState) => {
@@ -363,15 +374,6 @@ export default function CustomizeProductPage({
     },
     [pushHistory]
   );
-
-  // Initialize history
-  useEffect(() => {
-    if (history.length === 0) {
-      setHistory([design]);
-      setHistoryIndex(0);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // ─── Element Operations ────────────────────────────
   const addTextElement = () => {
@@ -577,6 +579,71 @@ export default function CustomizeProductPage({
       setDragging(null);
     }
   };
+
+  // ─── Touch Handling (mobile) ───────────────────────
+  const handleCanvasTouchStart = (e: React.TouchEvent) => {
+    if (!canvasRef.current || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = (touch.clientX - rect.left) / zoom;
+    const y = (touch.clientY - rect.top) / zoom;
+
+    for (let i = design.elements.length - 1; i >= 0; i--) {
+      const el = design.elements[i];
+      if (x >= el.x - el.width / 2 && x <= el.x + el.width / 2 && y >= el.y - el.height / 2 && y <= el.y + el.height / 2) {
+        setSelectedElementId(el.id);
+        setDragging({ elementId: el.id, offsetX: x - el.x, offsetY: y - el.y });
+        return;
+      }
+    }
+    setSelectedElementId(null);
+  };
+
+  const handleCanvasTouchMove = (e: React.TouchEvent) => {
+    if (!dragging || !canvasRef.current || e.touches.length !== 1) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = (touch.clientX - rect.left) / zoom - dragging.offsetX;
+    const y = (touch.clientY - rect.top) / zoom - dragging.offsetY;
+    setDesign((prev) => ({
+      ...prev,
+      elements: prev.elements.map((el) => (el.id === dragging.elementId ? { ...el, x, y } as DesignElement : el)),
+    }));
+  };
+
+  const handleCanvasTouchEnd = () => {
+    if (dragging) {
+      pushHistory(design);
+      setDragging(null);
+    }
+  };
+
+  // ─── Mobile state ──────────────────────────────────
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
+
+  const handleMobileToolClick = (toolId: ToolType) => {
+    if (activeTool === toolId && mobilePanelOpen) {
+      setMobilePanelOpen(false);
+    } else {
+      setActiveTool(toolId);
+      setMobilePanelOpen(true);
+    }
+  };
+
+  // ─── Auto-fit zoom on mobile ───────────────────────
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        const availWidth = window.innerWidth - 32;
+        const fitZoom = Math.min(availWidth / design.canvasWidth, 1);
+        setZoom(Math.round(fitZoom * 100) / 100);
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [design.canvasWidth]);
 
   // ─── QR Input state ────────────────────────────────
   const [qrInput, setQrInput] = useState("https://pac8.store");
@@ -1106,50 +1173,53 @@ export default function CustomizeProductPage({
               />
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               {/* Undo / Redo */}
-              <button onClick={undo} disabled={historyIndex <= 0} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted disabled:opacity-30 transition text-muted-foreground">
+              <button onClick={undo} disabled={historyIndexRef.current <= 0} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted disabled:opacity-30 transition text-muted-foreground">
                 <Undo2 size={16} />
               </button>
-              <button onClick={redo} disabled={historyIndex >= history.length - 1} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted disabled:opacity-30 transition text-muted-foreground">
+              <button onClick={redo} disabled={historyIndexRef.current >= historyRef.current.length - 1} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted disabled:opacity-30 transition text-muted-foreground">
                 <Redo2 size={16} />
               </button>
 
-              <div className="h-5 w-px bg-border" />
-
-              {/* Zoom */}
-              <button onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition text-muted-foreground">
-                <ZoomOut size={16} />
-              </button>
-              <span className="text-xs text-muted-foreground w-10 text-center">{Math.round(zoom * 100)}%</span>
-              <button onClick={() => setZoom((z) => Math.min(2, z + 0.1))} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition text-muted-foreground">
-                <ZoomIn size={16} />
-              </button>
+              {/* Zoom - hidden on mobile */}
+              <div className="hidden sm:flex items-center gap-1">
+                <div className="h-5 w-px bg-border" />
+                <button onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition text-muted-foreground">
+                  <ZoomOut size={16} />
+                </button>
+                <span className="text-xs text-muted-foreground w-10 text-center">{Math.round(zoom * 100)}%</span>
+                <button onClick={() => setZoom((z) => Math.min(2, z + 0.1))} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition text-muted-foreground">
+                  <ZoomIn size={16} />
+                </button>
+              </div>
 
               <div className="h-5 w-px bg-border" />
 
               {/* Actions */}
               <button
                 onClick={() => setShowPreview(true)}
-                className="h-9 px-3 bg-muted text-muted-foreground rounded-lg text-sm font-medium hover:bg-muted/80 transition flex items-center gap-1.5"
+                className="h-9 w-9 sm:w-auto sm:px-3 bg-muted text-muted-foreground rounded-lg text-sm font-medium hover:bg-muted/80 transition flex items-center justify-center gap-1.5"
               >
-                <Eye size={15} /> Preview
+                <Eye size={15} />
+                <span className="hidden sm:inline">Preview</span>
               </button>
               <button
                 onClick={saveDesign}
                 disabled={saving}
-                className="h-9 px-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition flex items-center gap-1.5 disabled:opacity-50"
+                className="h-9 w-9 sm:w-auto sm:px-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
-                <Save size={15} /> {saving ? "Saving..." : "Save Draft"}
+                <Save size={15} />
+                <span className="hidden sm:inline">{saving ? "Saving..." : "Save Draft"}</span>
               </button>
             </div>
           </div>
         </div>
 
         {/* Editor body */}
-        <div className="flex flex-1" style={{ height: "calc(100vh - 180px)" }}>
-          {/* Left: Tool strip */}
-          <div className="w-14 bg-card border-r border-border flex flex-col items-center py-3 gap-1 shrink-0">
+        <div className="flex flex-1 relative" style={{ height: "calc(100vh - 180px)" }}>
+          {/* Left: Tool strip (desktop only) */}
+          <div className="hidden md:flex w-14 bg-card border-r border-border flex-col items-center py-3 gap-1 shrink-0">
             {[
               { id: "select" as ToolType, icon: Move, label: "Select" },
               { id: "text" as ToolType, icon: Type, label: "Text" },
@@ -1174,16 +1244,16 @@ export default function CustomizeProductPage({
             ))}
           </div>
 
-          {/* Left panel: Tool options */}
-          <div className="w-64 bg-card border-r border-border p-4 overflow-y-auto shrink-0">
+          {/* Left panel: Tool options (desktop only) */}
+          <div className="hidden md:block w-64 bg-card border-r border-border p-4 overflow-y-auto shrink-0">
             {renderToolPanel()}
           </div>
 
           {/* Center: Canvas */}
-          <div className="flex-1 bg-muted/50 overflow-auto flex items-center justify-center relative">
+          <div className="flex-1 bg-muted/50 overflow-auto flex items-center justify-center relative pb-16 md:pb-0">
             <div
               ref={canvasRef}
-              className="relative rounded-lg shadow-xl overflow-hidden"
+              className="relative rounded-lg shadow-xl overflow-hidden touch-none"
               style={{
                 width: design.canvasWidth * zoom,
                 height: design.canvasHeight * zoom,
@@ -1193,6 +1263,9 @@ export default function CustomizeProductPage({
               onMouseMove={handleCanvasMouseMove}
               onMouseUp={handleCanvasMouseUp}
               onMouseLeave={handleCanvasMouseUp}
+              onTouchStart={handleCanvasTouchStart}
+              onTouchMove={handleCanvasTouchMove}
+              onTouchEnd={handleCanvasTouchEnd}
             >
               <div style={{ transform: `scale(${zoom})`, transformOrigin: "top left", width: design.canvasWidth, height: design.canvasHeight, position: "relative" }}>
                 {design.elements.map(renderElement)}
@@ -1261,6 +1334,51 @@ export default function CustomizeProductPage({
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Mobile: Bottom tool bar */}
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-30">
+            {/* Mobile tool panel (bottom sheet) */}
+            {mobilePanelOpen && (
+              <div className="bg-card border-t border-border max-h-[50vh] overflow-y-auto px-4 py-3 shadow-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-foreground capitalize">{activeTool}</h3>
+                  <button
+                    onClick={() => setMobilePanelOpen(false)}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition text-muted-foreground"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                {renderToolPanel()}
+              </div>
+            )}
+
+            {/* Tool icons row */}
+            <div className="bg-card border-t border-border px-2 py-2 flex items-center justify-around gap-1">
+              {[
+                { id: "select" as ToolType, icon: Move, label: "Select" },
+                { id: "text" as ToolType, icon: Type, label: "Text" },
+                { id: "image" as ToolType, icon: ImageIcon, label: "Image" },
+                { id: "color" as ToolType, icon: Palette, label: "Color" },
+                { id: "qr" as ToolType, icon: QrCode, label: "QR" },
+                { id: "finish" as ToolType, icon: Sparkles, label: "Finish" },
+                { id: "template" as ToolType, icon: LayoutTemplate, label: "Template" },
+              ].map((tool) => (
+                <button
+                  key={tool.id}
+                  onClick={() => handleMobileToolClick(tool.id)}
+                  className={`flex flex-col items-center justify-center gap-0.5 py-1.5 px-2 rounded-lg transition min-w-0 ${
+                    activeTool === tool.id
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  <tool.icon size={18} />
+                  <span className="text-[10px] leading-tight truncate">{tool.label}</span>
+                </button>
+              ))}
             </div>
           </div>
         </div>
