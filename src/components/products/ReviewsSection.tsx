@@ -1,121 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Star, User, MessageSquare } from "lucide-react";
-
-interface Review {
-  id: string;
-  rating: number;
-  title: string | null;
-  comment: string | null;
-  userName: string;
-  createdAt: string;
-}
+import { Star, MessageSquare } from "lucide-react";
+import StarRating from "@/components/ui/star-rating";
+import ReviewCard from "@/components/products/ReviewCard";
+import ReviewForm from "@/components/products/ReviewForm";
+import { useReviews } from "@/hooks/use-reviews";
 
 interface ReviewsSectionProps {
   productId: string;
   productSlug: string;
 }
 
-function StarRating({
-  rating,
-  size = 16,
-  interactive = false,
-  onRate,
-}: {
-  rating: number;
-  size?: number;
-  interactive?: boolean;
-  onRate?: (rating: number) => void;
-}) {
-  const [hoverRating, setHoverRating] = useState(0);
-  const displayRating = interactive && hoverRating > 0 ? hoverRating : rating;
-
-  return (
-    <div className="flex gap-0.5">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <button
-          key={star}
-          type={interactive ? "button" : undefined}
-          onClick={() => interactive && onRate?.(star)}
-          onMouseEnter={() => interactive && setHoverRating(star)}
-          onMouseLeave={() => interactive && setHoverRating(0)}
-          className={interactive ? "cursor-pointer" : "cursor-default"}
-          disabled={!interactive}
-        >
-          <Star
-            size={size}
-            className={
-              star <= displayRating
-                ? "fill-amber-400 text-amber-400"
-                : "fill-none text-muted-foreground/30"
-            }
-          />
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function ReviewCard({ review }: { review: Review }) {
-  return (
-    <div className="bg-card border border-border rounded-xl p-5">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-            <User size={18} className="text-primary" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground">
-              {review.userName}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {new Date(review.createdAt).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-              })}
-            </p>
-          </div>
-        </div>
-        <StarRating rating={review.rating} size={14} />
-      </div>
-      {review.title && (
-        <h4 className="text-sm font-semibold text-foreground mb-1">
-          {review.title}
-        </h4>
-      )}
-      {review.comment && (
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          {review.comment}
-        </p>
-      )}
-    </div>
-  );
-}
-
 export default function ReviewsSection({
   productId,
 }: ReviewsSectionProps) {
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [averageRating, setAverageRating] = useState(0);
-  const [totalReviews, setTotalReviews] = useState(0);
-
-  // Fetch reviews
-  useEffect(() => {
-    fetch(`/api/products/${productId}/reviews`)
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.data) {
-          setReviews(json.data.reviews ?? []);
-          setAverageRating(json.data.averageRating ?? 0);
-          setTotalReviews(json.data.totalReviews ?? 0);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [productId]);
+  const { reviews, loading, averageRating, totalReviews, addReview } =
+    useReviews(productId);
 
   // Rating distribution
   const ratingCounts = [5, 4, 3, 2, 1].map((rating) => ({
@@ -157,16 +57,19 @@ export default function ReviewsSection({
       </h2>
 
       {totalReviews === 0 ? (
-        <div className="bg-card border border-border rounded-2xl p-10 text-center">
-          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-            <MessageSquare size={28} className="text-muted-foreground" />
+        <div className="space-y-6">
+          <div className="bg-card border border-border rounded-2xl p-10 text-center">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+              <MessageSquare size={28} className="text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground">
+              No Reviews Yet
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Be the first to review this product
+            </p>
           </div>
-          <h3 className="text-lg font-semibold text-foreground">
-            No Reviews Yet
-          </h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            Be the first to review this product
-          </p>
+          <ReviewForm productId={productId} onReviewSubmitted={addReview} />
         </div>
       ) : (
         <div className="grid md:grid-cols-3 gap-6">
@@ -213,10 +116,13 @@ export default function ReviewsSection({
               <ReviewCard key={review.id} review={review} />
             ))}
           </div>
+
+          {/* Write a review */}
+          <div className="md:col-span-3">
+            <ReviewForm productId={productId} onReviewSubmitted={addReview} />
+          </div>
         </div>
       )}
     </section>
   );
 }
-
-export { StarRating };

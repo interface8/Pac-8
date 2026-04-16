@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSelector, useDispatch } from "react-redux";
@@ -9,16 +8,10 @@ import {
   Minus,
   Plus,
   Trash2,
-  ArrowRight,
-  Tag,
-  X,
   Bookmark,
   ShoppingCart,
   ShoppingBag,
-  Loader2,
   Palette,
-  CheckCircle2,
-  Package,
 } from "lucide-react";
 import {
   increaseQuantity,
@@ -26,9 +19,10 @@ import {
   removeFromCart,
   saveForLater,
   moveToCart,
-  setPromo,
 } from "@/store/cartSlice";
 import { toast } from "react-toastify";
+import OrderSummary from "@/components/cart/OrderSummary";
+import { usePromoCode } from "@/hooks/use-promo-code";
 
 const Cart = () => {
   const allItems = useSelector((state: RootState) => state.cart.items);
@@ -38,10 +32,6 @@ const Cart = () => {
   const cartItems = allItems.filter((item) => !item.savedForLater);
   const savedItems = allItems.filter((item) => item.savedForLater);
 
-  const [promoCode, setPromoCode] = useState("");
-  const [promoLoading, setPromoLoading] = useState(false);
-  const [promoError, setPromoError] = useState("");
-
   const subtotal = cartItems.reduce(
     (acc, item) => acc + item.price * item.quantity,
     0,
@@ -50,38 +40,15 @@ const Cart = () => {
   const vat = (subtotal - discount) * 0.075;
   const total = subtotal - discount + vat;
 
-  const handleApplyPromo = async () => {
-    if (!promoCode.trim()) return;
-    setPromoLoading(true);
-    setPromoError("");
-
-    try {
-      const res = await fetch("/api/promo/validate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: promoCode.trim(), subtotal }),
-      });
-      const json = await res.json();
-
-      if (!res.ok) {
-        setPromoError(json.message || "Invalid promo code");
-        return;
-      }
-
-      dispatch(setPromo(json.data));
-      toast.success(`Promo code "${json.data.code}" applied!`);
-    } catch {
-      setPromoError("Failed to validate promo code");
-    } finally {
-      setPromoLoading(false);
-    }
-  };
-
-  const handleRemovePromo = () => {
-    dispatch(setPromo(null));
-    setPromoCode("");
-    setPromoError("");
-  };
+  const {
+    promoCode,
+    setPromoCode,
+    promoLoading,
+    promoError,
+    setPromoError,
+    applyPromo,
+    removePromo,
+  } = usePromoCode(subtotal);
 
   if (cartItems.length === 0 && savedItems.length === 0) {
     return (
@@ -269,129 +236,22 @@ const Cart = () => {
 
           {/* RIGHT: Order Summary */}
           <div className="lg:col-span-1">
-            <div className="bg-card rounded-xl shadow-sm border border-border p-5 sm:p-6 lg:sticky lg:top-28 space-y-5">
-              <h3 className="text-lg sm:text-xl font-bold text-foreground">
-                Order Summary
-              </h3>
-
-              {/* Promo Code */}
-              <div>
-                {promo ? (
-                  <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2.5">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <CheckCircle2 size={16} className="text-green-600 shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-green-700 dark:text-green-400 truncate">{promo.code}</p>
-                        <p className="text-xs text-green-600 dark:text-green-500">
-                          {promo.discountType === "PERCENTAGE"
-                            ? `${promo.discountValue}% off`
-                            : `₦${promo.discountValue.toLocaleString()} off`}
-                        </p>
-                      </div>
-                    </div>
-                    <button onClick={handleRemovePromo} className="text-green-600 hover:text-green-800 transition p-1">
-                      <X size={16} />
-                    </button>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <Tag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <input
-                          type="text"
-                          value={promoCode}
-                          onChange={(e) => {
-                            setPromoCode(e.target.value.toUpperCase());
-                            setPromoError("");
-                          }}
-                          placeholder="Promo code"
-                          className="w-full h-10 pl-9 pr-3 bg-muted border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                          onKeyDown={(e) => e.key === "Enter" && handleApplyPromo()}
-                        />
-                      </div>
-                      <button
-                        onClick={handleApplyPromo}
-                        disabled={promoLoading || !promoCode.trim()}
-                        className="h-10 px-4 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition disabled:opacity-50 shrink-0"
-                      >
-                        {promoLoading ? <Loader2 size={16} className="animate-spin" /> : "Apply"}
-                      </button>
-                    </div>
-                    {promoError && (
-                      <p className="text-xs text-red-500 mt-1.5">{promoError}</p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Price breakdown */}
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Subtotal ({cartItems.reduce((s, i) => s + i.quantity, 0)} items)</span>
-                  <span className="text-foreground font-semibold">
-                    ₦{subtotal.toLocaleString()}
-                  </span>
-                </div>
-
-                {discount > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Discount</span>
-                    <span className="font-semibold">−₦{discount.toLocaleString()}</span>
-                  </div>
-                )}
-
-                <div className="flex justify-between text-muted-foreground">
-                  <span>VAT (7.5%)</span>
-                  <span className="text-foreground font-semibold">
-                    ₦{vat.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                  </span>
-                </div>
-
-                <div className="flex justify-between text-muted-foreground">
-                  <span className="flex items-center gap-1"><Package size={14} /> Shipping</span>
-                  <span className="text-foreground font-medium text-xs">Calculated at checkout</span>
-                </div>
-
-                <div className="border-t border-border pt-4">
-                  <div className="flex justify-between font-bold text-foreground">
-                    <span className="text-lg">Total</span>
-                    <span className="text-2xl text-primary">
-                      ₦{total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Checkout button */}
-              <Link
-                href="/checkout"
-                className={`flex justify-center items-center gap-3 w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3.5 rounded-xl font-semibold text-base transition shadow-sm hover:shadow active:scale-[0.98] ${
-                  cartItems.length === 0 ? "pointer-events-none opacity-50" : ""
-                }`}
-              >
-                Proceed to Checkout
-                <ArrowRight size={16} />
-              </Link>
-
-              {/* Payment trust indicators */}
-              <div className="pt-4 border-t border-border">
-                <h4 className="text-sm font-semibold text-foreground mb-3">
-                  Payment Options
-                </h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li className="flex items-center gap-2">
-                    <span className="text-green-600">✔</span> Credit/Debit Card (Stripe)
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-green-600">✔</span> Bank Transfer
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-green-600">✔</span> Pay Small Small (Installments)
-                  </li>
-                </ul>
-              </div>
-            </div>
+            <OrderSummary
+              subtotal={subtotal}
+              discount={discount}
+              vat={vat}
+              total={total}
+              itemCount={cartItems.reduce((s, i) => s + i.quantity, 0)}
+              cartEmpty={cartItems.length === 0}
+              promo={promo}
+              promoCode={promoCode}
+              promoLoading={promoLoading}
+              promoError={promoError}
+              onPromoCodeChange={setPromoCode}
+              onPromoErrorChange={setPromoError}
+              onApplyPromo={applyPromo}
+              onRemovePromo={removePromo}
+            />
           </div>
         </div>
       </div>
