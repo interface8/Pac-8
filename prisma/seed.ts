@@ -172,7 +172,8 @@ async function main() {
 
   const productCategories = [];
   for (const pc of productCategoryDefs) {
-    const created = await prisma.productCategory.create({ data: pc });
+    const existing = await prisma.productCategory.findFirst({ where: { name: pc.name } });
+    const created = existing ?? (await prisma.productCategory.create({ data: pc }));
     productCategories.push(created);
   }
   console.log(`  ✅ ${productCategories.length} product categories created`);
@@ -507,7 +508,8 @@ async function main() {
   for (const product of productDefs) {
     await prisma.product.upsert({
       where: { slug: product.slug },
-      update: {},
+      // slug and sku are immutable identifiers — exclude from update via undefined
+      update: { ...product, slug: undefined, sku: undefined },
       create: product,
     });
   }
@@ -790,6 +792,79 @@ async function main() {
     create: { email: "demo@pac8.dev", name: "Demo User" },
   });
   console.log("  ✅ Newsletter demo subscriber created");
+
+  // ─── 13. Product Views ───────────────────────────────
+  // Wipe existing views and re-seed from scratch
+  await prisma.productView.deleteMany({});
+
+  // Map slug → image file (same as ProductImage above)
+  const productImageMap: Record<string, string> = {
+    "custom-paper-cup-8oz":         "/images/1.jpeg",
+    "double-wall-cup-12oz":         "/images/2.png",
+    "smoothie-cup-16oz":            "/images/3.webp",
+    "mailer-box-small":             "/images/4.jpg",
+    "rigid-gift-box-medium":        "/images/5.webp",
+    "pizza-box-12":                 "/images/6.jpg",
+    "kraft-paper-bag-medium":       "/images/7.jpg",
+    "non-woven-tote-branded":       "/images/8.jpg",
+    "pet-bottle-500ml":             "/images/9.jpg",
+    "glass-spray-bottle-200ml":     "/images/10.jpg",
+    "custom-vinyl-sticker-100":     "/images/11.jpg",
+    "product-label-a4-24":          "/images/12.webp",
+    "biodegradable-meal-box-750ml": "/images/13.webp",
+    "sauce-cup-60ml-50pk":          "/images/14.jpg",
+    "premium-embossed-box-large":   "/images/15.jpg",
+  };
+
+  // All 6 views definition (sortOrder matches visual order)
+  const allViews = [
+    { viewKey: "front",  name: "Front",  sortOrder: 0, isDefault: true  },
+    { viewKey: "back",   name: "Back",   sortOrder: 1, isDefault: false },
+    { viewKey: "left",   name: "Left",   sortOrder: 2, isDefault: false },
+    { viewKey: "right",  name: "Right",  sortOrder: 3, isDefault: false },
+    { viewKey: "top",    name: "Top",    sortOrder: 4, isDefault: false },
+    { viewKey: "bottom", name: "Bottom", sortOrder: 5, isDefault: false },
+  ];
+
+  // Products that support full 360° view (allowCustomPrint: true)
+  // Others get front + back only
+  const fullViewSlugs = new Set([
+    "custom-paper-cup-8oz",
+    "double-wall-cup-12oz",
+    "smoothie-cup-16oz",
+    "mailer-box-small",
+    "rigid-gift-box-medium",
+    "pizza-box-12",
+    "kraft-paper-bag-medium",
+    "non-woven-tote-branded",
+    "pet-bottle-500ml",
+    "glass-spray-bottle-200ml",
+    "custom-vinyl-sticker-100",
+    "biodegradable-meal-box-750ml",
+    "premium-embossed-box-large",
+  ]);
+
+  const allProductsForViews = await prisma.product.findMany({ orderBy: { createdAt: "asc" } });
+
+  let viewCount = 0;
+  for (const prod of allProductsForViews) {
+    const imageUrl = productImageMap[prod.slug] ?? "/images/1.jpeg";
+    const views = fullViewSlugs.has(prod.slug) ? allViews : allViews.slice(0, 2); // front + back for others
+    for (const view of views) {
+      await prisma.productView.create({
+        data: {
+          productId:    prod.id,
+          viewKey:      view.viewKey,
+          name:         view.name,
+          baseImageUrl: imageUrl,
+          sortOrder:    view.sortOrder,
+          isDefault:    view.isDefault,
+        },
+      });
+      viewCount++;
+    }
+  }
+  console.log(`  ✅ ${viewCount} product views seeded (front/back/left/right/top/bottom)`);
 
   console.log("\n🎉 PAC-8 seed completed successfully!");
 }

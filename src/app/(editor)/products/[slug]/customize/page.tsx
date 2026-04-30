@@ -27,6 +27,8 @@ import {
   Upload,
   Copy,
   X,
+  Layers,
+  CheckCircle2,
 } from "lucide-react";
 import { useProduct } from "@/hooks/use-products";
 import { toast } from "react-toastify";
@@ -35,6 +37,17 @@ import { toast } from "react-toastify";
 type ToolType = "select" | "text" | "image" | "color" | "qr" | "finish" | "template";
 
 type FinishType = "matte" | "glossy" | "embossed" | "spot-uv";
+
+/** A product view definition (front, back, left, right, top, bottom) */
+interface ProductView {
+  id: string;
+  viewKey: string;
+  name: string;
+  baseImageUrl: string; // static product image — never modified by user
+  description: string | null;
+  sortOrder: number;
+  isDefault: boolean;
+}
 
 interface TextElement {
   type: "text";
@@ -78,7 +91,8 @@ interface QRElement {
 
 type DesignElement = TextElement | ImageElement | QRElement;
 
-interface DesignState {
+/** Per-view design state (canvas overlay only — does NOT contain the product base image) */
+interface ViewDesignState {
   elements: DesignElement[];
   backgroundColor: string;
   backgroundPattern: string | null;
@@ -86,6 +100,21 @@ interface DesignState {
   canvasWidth: number;
   canvasHeight: number;
 }
+
+/** Serialised format stored in SavedDesign.designData (version 2) */
+interface MultiViewDesignData {
+  version: "2";
+  views: Record<string, ViewDesignState>;
+}
+
+const DEFAULT_VIEW_DESIGN: ViewDesignState = {
+  elements: [],
+  backgroundColor: "#ffffff",
+  backgroundPattern: null,
+  finish: "matte",
+  canvasWidth: 600,
+  canvasHeight: 400,
+};
 
 // ─── Templates ─────────────────────────────────────────
 const TEMPLATES: { id: string; name: string; thumbnail: string; elements: DesignElement[]; backgroundColor: string }[] = [
@@ -312,70 +341,139 @@ export default function CustomizeProductPage({
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ── View state ────────────────────────────────────────
+  const [productViews, setProductViews] = useState<ProductView[]>([]);
+  const [viewsLoading, setViewsLoading] = useState(true);
+  /** Per-view designs keyed by viewKey — edits are stored separately per view */
+  const [viewDesigns, setViewDesigns] = useState<Record<string, ViewDesignState>>({});
+  const [activeViewKey, setActiveViewKey] = useState<string>("");
+
+  /** Current view's design (convenience accessor — derived from viewDesigns[activeViewKey]) */
+  const currentDesign: ViewDesignState = viewDesigns[activeViewKey] ?? DEFAULT_VIEW_DESIGN;
+
+  const setCurrentDesign = useCallback(
+    (updater: (prev: ViewDesignState) => ViewDesignState) => {
+      setViewDesigns((prev) => ({
+        ...prev,
+        [activeViewKey]: updater(prev[activeViewKey] ?? DEFAULT_VIEW_DESIGN),
+      }));
+    },
+    [activeViewKey]
+  );
+  // silence "setCurrentDesign defined but never used" — it's used by updateDesign
+  void setCurrentDesign;
+
+  // ── General editor state ──────────────────────────────
   const [activeTool, setActiveTool] = useState<ToolType>("select");
-  const [design, setDesign] = useState<DesignState>({
-    elements: [],
-    backgroundColor: "#ffffff",
-    backgroundPattern: null,
-    finish: "matte",
-    canvasWidth: 600,
-    canvasHeight: 400,
-  });
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [designName, setDesignName] = useState("Untitled Design");
+  const [existingDesignId, setExistingDesignId] = useState<string | null>(null);
+  const [dragging, setDragging] = useState<{
+    elementId: string;
+    offsetX: number;
+    offsetY: number;
+  } | null>(null);
+  const [qrInput, setQrInput] = useState("https://pac8.store");
 
-  // Dragging state
-  const [dragging, setDragging] = useState<{ elementId: string; offsetX: number; offsetY: number } | null>(null);
+  const selectedElement = currentDesign.elements.find((el) => el.id === selectedElementId) ?? null;
 
-  const selectedElement = design.elements.find((el) => el.id === selectedElementId) ?? null;
-
-  // ─── History (refs for instant access, no stale closures) ───
-  const historyRef = useRef<DesignState[]>([design]);
-  const historyIndexRef = useRef(0);
-  // Re-render trigger — incremented when undo/redo changes to update button disabled state
+  // ── Per-view undo/redo ────────────────────────────────
+  const historyRef = useRef<Record<string, ViewDesignState[]>>({});
+  const historyIndexRef = useRef<Record<string, number>>({});
   const [, setHistoryTick] = useState(0);
   const tickRender = () => setHistoryTick((t) => t + 1);
 
-  const pushHistory = useCallback((newDesign: DesignState) => {
-    const idx = historyIndexRef.current;
-    historyRef.current = [...historyRef.current.slice(0, idx + 1), newDesign];
-    historyIndexRef.current = idx + 1;
+  const pushHistory = useCallback((viewKey: string, newDesign: ViewDesignState) => {
+    if (!historyRef.current[viewKey]) {
+      historyRef.current[viewKey] = [newDesign];
+      historyIndexRef.current[viewKey] = 0;
+      return;
+    }
+    const idx = historyIndexRef.current[viewKey];
+    historyRef.current[viewKey] = [
+      ...historyRef.current[viewKey].slice(0, idx + 1),
+      newDesign,
+    ];
+    historyIndexRef.current[viewKey] = idx + 1;
     tickRender();
   }, []);
 
   const undo = useCallback(() => {
-    const idx = historyIndexRef.current;
+    const idx = historyIndexRef.current[activeViewKey] ?? 0;
     if (idx > 0) {
-      historyIndexRef.current = idx - 1;
-      setDesign(historyRef.current[idx - 1]);
+      historyIndexRef.current[activeViewKey] = idx - 1;
+      const prev = historyRef.current[activeViewKey][idx - 1];
+      setViewDesigns((vd) => ({ ...vd, [activeViewKey]: prev }));
       tickRender();
     }
-  }, []);
+  }, [activeViewKey]);
 
   const redo = useCallback(() => {
-    const idx = historyIndexRef.current;
-    if (idx < historyRef.current.length - 1) {
-      historyIndexRef.current = idx + 1;
-      setDesign(historyRef.current[idx + 1]);
+    const idx = historyIndexRef.current[activeViewKey] ?? 0;
+    const hist = historyRef.current[activeViewKey] ?? [];
+    if (idx < hist.length - 1) {
+      historyIndexRef.current[activeViewKey] = idx + 1;
+      const next = hist[idx + 1];
+      setViewDesigns((vd) => ({ ...vd, [activeViewKey]: next }));
       tickRender();
     }
-  }, []);
+  }, [activeViewKey]);
 
   const updateDesign = useCallback(
-    (updater: (prev: DesignState) => DesignState) => {
-      setDesign((prev) => {
-        const next = updater(prev);
-        pushHistory(next);
-        return next;
+    (updater: (prev: ViewDesignState) => ViewDesignState) => {
+      setViewDesigns((prev) => {
+        const current = prev[activeViewKey] ?? DEFAULT_VIEW_DESIGN;
+        const next = updater(current);
+        pushHistory(activeViewKey, next);
+        return { ...prev, [activeViewKey]: next };
       });
     },
-    [pushHistory]
+    [activeViewKey, pushHistory]
   );
 
-  // ─── Element Operations ────────────────────────────
+  // ── Load product views from API ───────────────────────
+  useEffect(() => {
+    if (!product) return;
+    setViewsLoading(true);
+    fetch(`/api/products/${product.id}/views`)
+      .then((r) => r.json())
+      .then((json) => {
+        const views: ProductView[] = json.data ?? [];
+        setProductViews(views);
+        if (views.length > 0) {
+          const defaultView = views.find((v) => v.isDefault) ?? views[0];
+          setActiveViewKey(defaultView.viewKey);
+          // Initialise an empty independent design for every view
+          const initial: Record<string, ViewDesignState> = {};
+          views.forEach((v) => {
+            initial[v.viewKey] = { ...DEFAULT_VIEW_DESIGN };
+          });
+          setViewDesigns(initial);
+        } else {
+          // No views configured — use a single "default" canvas
+          setActiveViewKey("default");
+          setViewDesigns({ default: { ...DEFAULT_VIEW_DESIGN } });
+        }
+      })
+      .catch(() => {
+        setActiveViewKey("default");
+        setViewDesigns({ default: { ...DEFAULT_VIEW_DESIGN } });
+      })
+      .finally(() => setViewsLoading(false));
+  }, [product]);
+
+  // ── Switch active view ────────────────────────────────
+  const switchView = (viewKey: string) => {
+    if (viewKey === activeViewKey) return;
+    setSelectedElementId(null); // deselect element when switching views
+    setActiveTool("select");
+    setActiveViewKey(viewKey);
+  };
+
+  // ── Element operations ────────────────────────────────
   const addTextElement = () => {
     const id = generateId();
     updateDesign((prev) => ({
@@ -410,16 +508,7 @@ export default function CustomizeProductPage({
       ...prev,
       elements: [
         ...prev.elements,
-        {
-          type: "image",
-          id,
-          x: 150,
-          y: 100,
-          width: 150,
-          height: 150,
-          src,
-          rotation: 0,
-        },
+        { type: "image", id, x: 150, y: 100, width: 150, height: 150, src, rotation: 0 },
       ],
     }));
     setSelectedElementId(id);
@@ -432,17 +521,7 @@ export default function CustomizeProductPage({
       ...prev,
       elements: [
         ...prev.elements,
-        {
-          type: "qr",
-          id,
-          x: 200,
-          y: 150,
-          width: 100,
-          height: 100,
-          data,
-          color: "#1a1a1a",
-          rotation: 0,
-        },
+        { type: "qr", id, x: 200, y: 150, width: 100, height: 100, data, color: "#1a1a1a", rotation: 0 },
       ],
     }));
     setSelectedElementId(id);
@@ -452,20 +531,19 @@ export default function CustomizeProductPage({
   const updateElement = (id: string, updates: Partial<DesignElement>) => {
     updateDesign((prev) => ({
       ...prev,
-      elements: prev.elements.map((el) => (el.id === id ? { ...el, ...updates } as DesignElement : el)),
+      elements: prev.elements.map((el) =>
+        el.id === id ? ({ ...el, ...updates } as DesignElement) : el
+      ),
     }));
   };
 
   const deleteElement = (id: string) => {
-    updateDesign((prev) => ({
-      ...prev,
-      elements: prev.elements.filter((el) => el.id !== id),
-    }));
+    updateDesign((prev) => ({ ...prev, elements: prev.elements.filter((el) => el.id !== id) }));
     setSelectedElementId(null);
   };
 
   const duplicateElement = (id: string) => {
-    const el = design.elements.find((e) => e.id === id);
+    const el = currentDesign.elements.find((e) => e.id === id);
     if (!el) return;
     const newId = generateId();
     updateDesign((prev) => ({
@@ -475,66 +553,71 @@ export default function CustomizeProductPage({
     setSelectedElementId(newId);
   };
 
-  // ─── File Upload ───────────────────────────────────
+  // ── File upload ───────────────────────────────────────
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Validate file type
     const allowedTypes = ["image/png", "image/jpeg", "image/svg+xml", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
       toast.error("Please upload a PNG, JPEG, SVG, or WebP image");
       return;
     }
-    // Max 5MB
     if (file.size > 5 * 1024 * 1024) {
       toast.error("File size must be under 5MB");
       return;
     }
-
     const reader = new FileReader();
     reader.onload = () => {
-      if (typeof reader.result === "string") {
-        addImageElement(reader.result);
-      }
+      if (typeof reader.result === "string") addImageElement(reader.result);
     };
     reader.readAsDataURL(file);
     e.target.value = "";
   };
 
-  // ─── Template Apply ────────────────────────────────
-  const applyTemplate = (template: typeof TEMPLATES[number]) => {
-    const newDesign: DesignState = {
-      ...design,
+  // ── Template apply (current view only) ───────────────
+  const applyTemplate = (template: (typeof TEMPLATES)[number]) => {
+    const newDesign: ViewDesignState = {
+      ...currentDesign,
       elements: template.elements.map((el) => ({ ...el, id: generateId() })),
       backgroundColor: template.backgroundColor,
     };
-    setDesign(newDesign);
-    pushHistory(newDesign);
+    setViewDesigns((prev) => ({ ...prev, [activeViewKey]: newDesign }));
+    pushHistory(activeViewKey, newDesign);
     setSelectedElementId(null);
     setActiveTool("select");
     toast.success(`Template "${template.name}" applied`);
   };
 
-  // ─── Save Design ───────────────────────────────────
+  // ── Save design (all views serialised together) ───────
   const saveDesign = async () => {
     if (!product) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/designs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId: product.id,
-          name: designName,
-          designData: JSON.stringify(design),
-        }),
+      const payload: MultiViewDesignData = { version: "2", views: viewDesigns };
+      const bodyStr = JSON.stringify({
+        productId: product.id,
+        name: designName,
+        designData: JSON.stringify(payload),
       });
+
+      const url = existingDesignId ? `/api/designs/${existingDesignId}` : "/api/designs";
+      const method = existingDesignId ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: bodyStr,
+      });
+
       if (!res.ok) {
         const json = await res.json();
         throw new Error(json.message ?? "Failed to save");
       }
-      toast.success("Design saved as draft!");
+
+      const json = await res.json();
+      if (!existingDesignId && json?.data?.id) setExistingDesignId(json.data.id);
+
+      toast.success("Design saved!");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save design");
     } finally {
@@ -542,17 +625,20 @@ export default function CustomizeProductPage({
     }
   };
 
-  // ─── Drag Handling ─────────────────────────────────
+  // ── Canvas drag handling ──────────────────────────────
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     if (!canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const x = (e.clientX - rect.left) / zoom;
     const y = (e.clientY - rect.top) / zoom;
-
-    // Check if clicking on an element (reverse order for top-most)
-    for (let i = design.elements.length - 1; i >= 0; i--) {
-      const el = design.elements[i];
-      if (x >= el.x - el.width / 2 && x <= el.x + el.width / 2 && y >= el.y - el.height / 2 && y <= el.y + el.height / 2) {
+    for (let i = currentDesign.elements.length - 1; i >= 0; i--) {
+      const el = currentDesign.elements[i];
+      if (
+        x >= el.x - el.width / 2 &&
+        x <= el.x + el.width / 2 &&
+        y >= el.y - el.height / 2 &&
+        y <= el.y + el.height / 2
+      ) {
         setSelectedElementId(el.id);
         setDragging({ elementId: el.id, offsetX: x - el.x, offsetY: y - el.y });
         return;
@@ -566,31 +652,38 @@ export default function CustomizeProductPage({
     const rect = canvasRef.current.getBoundingClientRect();
     const x = (e.clientX - rect.left) / zoom - dragging.offsetX;
     const y = (e.clientY - rect.top) / zoom - dragging.offsetY;
-    // Update element position without pushing to history (will push on mouseUp)
-    setDesign((prev) => ({
+    setViewDesigns((prev) => ({
       ...prev,
-      elements: prev.elements.map((el) => (el.id === dragging.elementId ? { ...el, x, y } as DesignElement : el)),
+      [activeViewKey]: {
+        ...(prev[activeViewKey] ?? DEFAULT_VIEW_DESIGN),
+        elements: (prev[activeViewKey]?.elements ?? []).map((el) =>
+          el.id === dragging.elementId ? ({ ...el, x, y } as DesignElement) : el
+        ),
+      },
     }));
   };
 
   const handleCanvasMouseUp = () => {
     if (dragging) {
-      pushHistory(design);
+      pushHistory(activeViewKey, currentDesign);
       setDragging(null);
     }
   };
 
-  // ─── Touch Handling (mobile) ───────────────────────
   const handleCanvasTouchStart = (e: React.TouchEvent) => {
     if (!canvasRef.current || e.touches.length !== 1) return;
     const touch = e.touches[0];
     const rect = canvasRef.current.getBoundingClientRect();
     const x = (touch.clientX - rect.left) / zoom;
     const y = (touch.clientY - rect.top) / zoom;
-
-    for (let i = design.elements.length - 1; i >= 0; i--) {
-      const el = design.elements[i];
-      if (x >= el.x - el.width / 2 && x <= el.x + el.width / 2 && y >= el.y - el.height / 2 && y <= el.y + el.height / 2) {
+    for (let i = currentDesign.elements.length - 1; i >= 0; i--) {
+      const el = currentDesign.elements[i];
+      if (
+        x >= el.x - el.width / 2 &&
+        x <= el.x + el.width / 2 &&
+        y >= el.y - el.height / 2 &&
+        y <= el.y + el.height / 2
+      ) {
         setSelectedElementId(el.id);
         setDragging({ elementId: el.id, offsetX: x - el.x, offsetY: y - el.y });
         return;
@@ -606,49 +699,47 @@ export default function CustomizeProductPage({
     const rect = canvasRef.current.getBoundingClientRect();
     const x = (touch.clientX - rect.left) / zoom - dragging.offsetX;
     const y = (touch.clientY - rect.top) / zoom - dragging.offsetY;
-    setDesign((prev) => ({
+    setViewDesigns((prev) => ({
       ...prev,
-      elements: prev.elements.map((el) => (el.id === dragging.elementId ? { ...el, x, y } as DesignElement : el)),
+      [activeViewKey]: {
+        ...(prev[activeViewKey] ?? DEFAULT_VIEW_DESIGN),
+        elements: (prev[activeViewKey]?.elements ?? []).map((el) =>
+          el.id === dragging.elementId ? ({ ...el, x, y } as DesignElement) : el
+        ),
+      },
     }));
   };
 
   const handleCanvasTouchEnd = () => {
     if (dragging) {
-      pushHistory(design);
+      pushHistory(activeViewKey, currentDesign);
       setDragging(null);
     }
   };
 
-  // ─── Mobile state ──────────────────────────────────
-  const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
-
+  // ── Mobile panel ──────────────────────────────────────
+  const [mobilePanelOpenState, setMobilePanelOpenState] = useState(false);
   const handleMobileToolClick = (toolId: ToolType) => {
-    if (activeTool === toolId && mobilePanelOpen) {
-      setMobilePanelOpen(false);
-    } else {
-      setActiveTool(toolId);
-      setMobilePanelOpen(true);
-    }
+    if (activeTool === toolId && mobilePanelOpenState) setMobilePanelOpenState(false);
+    else { setActiveTool(toolId); setMobilePanelOpenState(true); }
   };
 
-  // ─── Auto-fit zoom on mobile ───────────────────────
+  // ── Auto-fit zoom on mobile ───────────────────────────
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 768) {
-        const availWidth = window.innerWidth - 32;
-        const fitZoom = Math.min(availWidth / design.canvasWidth, 1);
+        const fitZoom = Math.min((window.innerWidth - 32) / currentDesign.canvasWidth, 1);
         setZoom(Math.round(fitZoom * 100) / 100);
       }
     };
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [design.canvasWidth]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentDesign.canvasWidth]);
 
-  // ─── QR Input state ────────────────────────────────
-  const [qrInput, setQrInput] = useState("https://pac8.store");
-
-  if (loading) {
+  // ── Loading / error ───────────────────────────────────
+  if (loading || viewsLoading) {
     return (
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-32 md:pt-28 pb-12">
         <div className="flex items-center justify-center h-[60vh]">
@@ -662,16 +753,44 @@ export default function CustomizeProductPage({
     return (
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-32 md:pt-28 pb-12 text-center py-20">
         <h1 className="text-2xl font-bold text-foreground">Product Not Found</h1>
-        <Link href="/products" className="text-primary mt-4 inline-block">Back to Products</Link>
+        <Link href="/products" className="text-primary mt-4 inline-block">
+          Back to Products
+        </Link>
       </div>
     );
   }
 
-  const mainImage = product.images.length > 0
-    ? product.images.sort((a: { isMain: boolean; sortOrder: number }, b: { isMain: boolean; sortOrder: number }) => (a.isMain ? -1 : b.isMain ? 1 : a.sortOrder - b.sortOrder))[0]
-    : null;
+  const mainImage =
+    product.images.length > 0
+      ? product.images.sort(
+          (
+            a: { isMain: boolean; sortOrder: number },
+            b: { isMain: boolean; sortOrder: number }
+          ) => (a.isMain ? -1 : b.isMain ? 1 : a.sortOrder - b.sortOrder)
+        )[0]
+      : null;
 
-  // ─── Tool Panels ───────────────────────────────────
+  const activeView = productViews.find((v) => v.viewKey === activeViewKey) ?? null;
+  /**
+   * Base image URL for the current view.
+   * This is the static product photo — it is rendered BEHIND the canvas overlay
+   * and is NEVER touched by user edits.
+   */
+  const baseImageUrl = activeView?.baseImageUrl ?? mainImage?.url ?? null;
+
+  const canUndo = (historyIndexRef.current[activeViewKey] ?? 0) > 0;
+  const canRedo =
+    (historyIndexRef.current[activeViewKey] ?? 0) <
+    ((historyRef.current[activeViewKey]?.length ?? 1) - 1);
+
+  /** Views that have been edited (contain at least one element or a non-default background) */
+  const editedViews = new Set(
+    Object.entries(viewDesigns)
+      .filter(([, d]) => d.elements.length > 0 || d.backgroundColor !== "#ffffff")
+      .map(([k]) => k)
+  );
+
+  // ── Tool panel ────────────────────────────────────────
   const renderToolPanel = () => {
     switch (activeTool) {
       case "text":
@@ -698,9 +817,7 @@ export default function CustomizeProductPage({
                   onChange={(e) => updateElement(selectedElement.id, { fontFamily: e.target.value })}
                   className="w-full h-9 bg-muted border border-border rounded-lg px-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  {FONT_FAMILIES.map((f) => (
-                    <option key={f} value={f}>{f}</option>
-                  ))}
+                  {FONT_FAMILIES.map((f) => <option key={f} value={f}>{f}</option>)}
                 </select>
                 <div className="flex gap-2">
                   <input
@@ -757,7 +874,13 @@ export default function CustomizeProductPage({
         return (
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-foreground">Upload Logo / Image</h3>
-            <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="hidden" onChange={handleFileUpload} />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/svg+xml,image/webp"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
             <button
               onClick={() => fileInputRef.current?.click()}
               className="w-full h-24 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 text-muted-foreground hover:border-primary hover:text-primary transition cursor-pointer"
@@ -810,7 +933,12 @@ export default function CustomizeProductPage({
       case "color":
         return (
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Background</h3>
+            <h3 className="text-sm font-semibold text-foreground">Canvas Background</h3>
+            <p className="text-xs text-muted-foreground">
+              Changes the overlay canvas colour for the{" "}
+              <span className="font-semibold text-foreground">{activeView?.name ?? "current"}</span>{" "}
+              view only. The product base image is always preserved.
+            </p>
             <div>
               <label className="text-xs text-muted-foreground mb-2 block">Color</label>
               <div className="flex flex-wrap gap-2">
@@ -818,7 +946,7 @@ export default function CustomizeProductPage({
                   <button
                     key={color}
                     onClick={() => updateDesign((prev) => ({ ...prev, backgroundColor: color }))}
-                    className={`w-8 h-8 rounded-lg border-2 transition ${design.backgroundColor === color ? "border-primary scale-110 shadow-md" : "border-border"}`}
+                    className={`w-8 h-8 rounded-lg border-2 transition ${currentDesign.backgroundColor === color ? "border-primary scale-110 shadow-md" : "border-border"}`}
                     style={{ backgroundColor: color }}
                   />
                 ))}
@@ -827,11 +955,11 @@ export default function CustomizeProductPage({
                 <label className="text-xs text-muted-foreground">Custom:</label>
                 <input
                   type="color"
-                  value={design.backgroundColor}
+                  value={currentDesign.backgroundColor}
                   onChange={(e) => updateDesign((prev) => ({ ...prev, backgroundColor: e.target.value }))}
                   className="w-8 h-8 rounded cursor-pointer border border-border"
                 />
-                <span className="text-xs text-muted-foreground font-mono">{design.backgroundColor}</span>
+                <span className="text-xs text-muted-foreground font-mono">{currentDesign.backgroundColor}</span>
               </div>
             </div>
             <div>
@@ -842,7 +970,7 @@ export default function CustomizeProductPage({
                     key={p.id}
                     onClick={() => updateDesign((prev) => ({ ...prev, backgroundPattern: p.id === "none" ? null : p.id }))}
                     className={`h-9 rounded-lg text-xs font-medium transition ${
-                      (design.backgroundPattern ?? "none") === p.id
+                      (currentDesign.backgroundPattern ?? "none") === p.id
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-muted-foreground hover:bg-muted/80"
                     }`}
@@ -924,7 +1052,7 @@ export default function CustomizeProductPage({
                   key={opt.id}
                   onClick={() => updateDesign((prev) => ({ ...prev, finish: opt.id }))}
                   className={`w-full text-left p-3 rounded-xl border-2 transition ${
-                    design.finish === opt.id
+                    currentDesign.finish === opt.id
                       ? "border-primary bg-primary/5"
                       : "border-border hover:border-muted-foreground"
                   }`}
@@ -941,6 +1069,11 @@ export default function CustomizeProductPage({
         return (
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-foreground">Templates</h3>
+            <p className="text-xs text-muted-foreground">
+              Applied to the{" "}
+              <span className="font-semibold text-foreground">{activeView?.name ?? "current"}</span>{" "}
+              view only.
+            </p>
             <div className="space-y-2">
               {TEMPLATES.map((tpl) => (
                 <button
@@ -948,10 +1081,7 @@ export default function CustomizeProductPage({
                   onClick={() => applyTemplate(tpl)}
                   className="w-full text-left p-3 rounded-xl border border-border hover:border-primary transition group"
                 >
-                  <div
-                    className="w-full h-16 rounded-lg mb-2 border border-border"
-                    style={{ backgroundColor: tpl.backgroundColor }}
-                  />
+                  <div className="w-full h-16 rounded-lg mb-2 border border-border" style={{ backgroundColor: tpl.backgroundColor }} />
                   <p className="text-sm font-medium text-foreground group-hover:text-primary transition">{tpl.name}</p>
                 </button>
               ))}
@@ -967,7 +1097,7 @@ export default function CustomizeProductPage({
             </h3>
             {!selectedElement && (
               <p className="text-xs text-muted-foreground">
-                Click on an element in the canvas to select it, or use the tools on the left to add new elements.
+                Click an element on the canvas to select it, or use the tools to add new elements.
               </p>
             )}
             {selectedElement && (
@@ -1025,7 +1155,7 @@ export default function CustomizeProductPage({
     }
   };
 
-  // ─── Canvas Element Renderer ───────────────────────
+  // ── Canvas element renderer ────────────────────────────
   const renderElement = (el: DesignElement) => {
     const isSelected = el.id === selectedElementId;
     const baseStyle: React.CSSProperties = {
@@ -1089,59 +1219,157 @@ export default function CustomizeProductPage({
             unoptimized
           />
         )}
-        {el.type === "qr" && (
-          <QRCodeSVG data={el.data} color={el.color} size={el.width} />
-        )}
+        {el.type === "qr" && <QRCodeSVG data={el.data} color={el.color} size={el.width} />}
       </div>
     );
   };
 
-  // ─── Preview Modal ─────────────────────────────────
+  // ── View selector strip ───────────────────────────────
+  const ViewSelector = () => {
+    if (productViews.length === 0) return null;
+    return (
+      <div className="flex items-center gap-1.5 px-3 py-2 bg-muted/60 border-b border-border overflow-x-auto shrink-0">
+        <span className="text-xs text-muted-foreground shrink-0 mr-1 flex items-center gap-1">
+          <Layers size={12} /> Views:
+        </span>
+        {productViews.map((view) => {
+          const isActive = view.viewKey === activeViewKey;
+          const hasEdits = editedViews.has(view.viewKey);
+          return (
+            <button
+              key={view.viewKey}
+              onClick={() => switchView(view.viewKey)}
+              title={view.description ?? view.name}
+              className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium shrink-0 transition border ${
+                isActive
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                  : "bg-card text-muted-foreground border-border hover:border-primary hover:text-foreground"
+              }`}
+            >
+              {/* Thumbnail of the view's base image */}
+              <div className="w-6 h-6 rounded overflow-hidden bg-muted shrink-0">
+                <Image
+                  src={view.baseImageUrl}
+                  alt={view.name}
+                  width={24}
+                  height={24}
+                  className="w-full h-full object-cover"
+                  unoptimized
+                />
+              </div>
+              {view.name}
+              {hasEdits && (
+                <CheckCircle2 size={12} className={isActive ? "text-primary-foreground/80" : "text-primary"} />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // ── Preview modal ─────────────────────────────────────
   const PreviewModal = () => (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
       <div className="bg-card rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-auto">
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="text-lg font-bold text-foreground">Design Preview</h2>
+          <h2 className="text-lg font-bold text-foreground">Design Preview — All Views</h2>
           <button onClick={() => setShowPreview(false)} className="text-muted-foreground hover:text-foreground transition text-sm">
             Close
           </button>
         </div>
-        <div className="p-6">
-          <div className="flex items-center gap-6 mb-6">
+        <div className="p-6 space-y-6">
+          {/* Product info */}
+          <div className="flex items-center gap-4">
             {mainImage && (
-              <div className="relative w-24 h-24 bg-muted rounded-xl overflow-hidden shrink-0">
-                <Image src={mainImage.url} alt={product.name} fill className="object-contain" sizes="96px" />
+              <div className="relative w-16 h-16 bg-muted rounded-xl overflow-hidden shrink-0">
+                <Image src={mainImage.url} alt={product.name} fill className="object-contain" sizes="64px" />
               </div>
             )}
             <div>
               <h3 className="font-semibold text-foreground">{product.name}</h3>
               <p className="text-sm text-muted-foreground">{designName}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Finish: <span className="capitalize font-medium">{design.finish}</span> &bull;{" "}
-                {design.elements.length} element{design.elements.length !== 1 ? "s" : ""}
-              </p>
             </div>
           </div>
-          <div
-            className="relative mx-auto rounded-xl overflow-hidden border border-border shadow-lg"
-            style={{
-              width: Math.min(design.canvasWidth, 550),
-              height: Math.min(design.canvasHeight, 370),
-              ...getPatternStyle(design.backgroundPattern, design.backgroundColor),
-            }}
-          >
-            {design.elements.map(renderElement)}
-          </div>
-          <div className="mt-6 flex gap-3 justify-end">
-            <button onClick={() => setShowPreview(false)} className="h-10 px-4 bg-muted text-muted-foreground rounded-lg text-sm font-medium hover:bg-muted/80 transition">
+
+          {/* Per-view previews */}
+          {productViews.length === 0 ? (
+            <div>
+              <h4 className="text-sm font-semibold text-foreground mb-2">Design Canvas</h4>
+              <div
+                className="relative mx-auto rounded-xl overflow-hidden border border-border shadow-lg"
+                style={{
+                  width: Math.min(currentDesign.canvasWidth, 550),
+                  height: Math.min(currentDesign.canvasHeight, 370),
+                  ...getPatternStyle(currentDesign.backgroundPattern, currentDesign.backgroundColor),
+                }}
+              >
+                {currentDesign.elements.map(renderElement)}
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {productViews.map((view) => {
+                const vd = viewDesigns[view.viewKey];
+                const hasEdits = editedViews.has(view.viewKey);
+                return (
+                  <div key={view.viewKey}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <h4 className="text-sm font-semibold text-foreground">{view.name}</h4>
+                      {hasEdits && (
+                        <span className="text-xs text-primary font-medium flex items-center gap-1">
+                          <CheckCircle2 size={11} /> Edited
+                        </span>
+                      )}
+                    </div>
+                    {/* Base product image (always preserved) */}
+                    <div className="relative rounded-xl overflow-hidden border border-border shadow bg-muted" style={{ aspectRatio: "3/2" }}>
+                      <Image src={view.baseImageUrl} alt={view.name} fill className="object-contain" sizes="300px" />
+                      {/* Canvas overlay elements */}
+                      {vd && vd.elements.length > 0 && (
+                        <div
+                          className="absolute inset-0 pointer-events-none"
+                          style={{
+                            ...getPatternStyle(vd.backgroundPattern, vd.backgroundColor),
+                            opacity: vd.backgroundColor === "#ffffff" && !vd.backgroundPattern ? 0 : 0.85,
+                          }}
+                        >
+                          <div
+                            style={{
+                              position: "relative",
+                              width: vd.canvasWidth,
+                              height: vd.canvasHeight,
+                              transform: "scale(0.45)",
+                              transformOrigin: "top left",
+                            }}
+                          >
+                            {vd.elements.map(renderElement)}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {vd?.elements.length ?? 0} element(s) · {vd?.finish ?? "matte"} finish
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex gap-3 justify-end pt-4 border-t border-border">
+            <button
+              onClick={() => setShowPreview(false)}
+              className="h-10 px-4 bg-muted text-muted-foreground rounded-lg text-sm font-medium hover:bg-muted/80 transition"
+            >
               Continue Editing
             </button>
             <button
-              onClick={saveDesign}
+              onClick={async () => { await saveDesign(); setShowPreview(false); }}
               disabled={saving}
               className="h-10 px-6 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition disabled:opacity-50"
             >
-              {saving ? "Saving..." : "Save & Add to Cart"}
+              {saving ? "Saving..." : "Save Design"}
             </button>
           </div>
         </div>
@@ -1149,7 +1377,7 @@ export default function CustomizeProductPage({
     </div>
   );
 
-  // ─── Render ────────────────────────────────────────
+  // ── Main render ───────────────────────────────────────
   return (
     <>
       <main className="flex-1 pt-20 md:pt-24">
@@ -1174,29 +1402,44 @@ export default function CustomizeProductPage({
             </div>
 
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-              {/* Undo / Redo */}
-              <button onClick={undo} disabled={historyIndexRef.current <= 0} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted disabled:opacity-30 transition text-muted-foreground">
+              {/* Undo / Redo (per-view history) */}
+              <button
+                onClick={undo}
+                disabled={!canUndo}
+                title="Undo"
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted disabled:opacity-30 transition text-muted-foreground"
+              >
                 <Undo2 size={16} />
               </button>
-              <button onClick={redo} disabled={historyIndexRef.current >= historyRef.current.length - 1} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted disabled:opacity-30 transition text-muted-foreground">
+              <button
+                onClick={redo}
+                disabled={!canRedo}
+                title="Redo"
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted disabled:opacity-30 transition text-muted-foreground"
+              >
                 <Redo2 size={16} />
               </button>
 
-              {/* Zoom - hidden on mobile */}
+              {/* Zoom */}
               <div className="hidden sm:flex items-center gap-1">
                 <div className="h-5 w-px bg-border" />
-                <button onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition text-muted-foreground">
+                <button
+                  onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition text-muted-foreground"
+                >
                   <ZoomOut size={16} />
                 </button>
                 <span className="text-xs text-muted-foreground w-10 text-center">{Math.round(zoom * 100)}%</span>
-                <button onClick={() => setZoom((z) => Math.min(2, z + 0.1))} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition text-muted-foreground">
+                <button
+                  onClick={() => setZoom((z) => Math.min(2, z + 0.1))}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition text-muted-foreground"
+                >
                   <ZoomIn size={16} />
                 </button>
               </div>
 
               <div className="h-5 w-px bg-border" />
 
-              {/* Actions */}
               <button
                 onClick={() => setShowPreview(true)}
                 className="h-9 w-9 sm:w-auto sm:px-3 bg-muted text-muted-foreground rounded-lg text-sm font-medium hover:bg-muted/80 transition flex items-center justify-center gap-1.5"
@@ -1218,7 +1461,7 @@ export default function CustomizeProductPage({
 
         {/* Editor body */}
         <div className="flex flex-1 relative" style={{ height: "calc(100vh - 180px)" }}>
-          {/* Left: Tool strip (desktop only) */}
+          {/* Left: Tool strip (desktop) */}
           <div className="hidden md:flex w-14 bg-card border-r border-border flex-col items-center py-3 gap-1 shrink-0">
             {[
               { id: "select" as ToolType, icon: Move, label: "Select" },
@@ -1234,9 +1477,7 @@ export default function CustomizeProductPage({
                 onClick={() => setActiveTool(tool.id)}
                 title={tool.label}
                 className={`w-10 h-10 rounded-lg flex items-center justify-center transition ${
-                  activeTool === tool.id
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted"
+                  activeTool === tool.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
                 }`}
               >
                 <tool.icon size={18} />
@@ -1244,41 +1485,90 @@ export default function CustomizeProductPage({
             ))}
           </div>
 
-          {/* Left panel: Tool options (desktop only) */}
+          {/* Left panel: Tool options (desktop) */}
           <div className="hidden md:block w-64 bg-card border-r border-border p-4 overflow-y-auto shrink-0">
             {renderToolPanel()}
           </div>
 
-          {/* Center: Canvas */}
-          <div className="flex-1 bg-muted/50 overflow-auto flex items-center justify-center relative pb-16 md:pb-0">
-            <div
-              ref={canvasRef}
-              className="relative rounded-lg shadow-xl overflow-hidden touch-none"
-              style={{
-                width: design.canvasWidth * zoom,
-                height: design.canvasHeight * zoom,
-                ...getPatternStyle(design.backgroundPattern, design.backgroundColor),
-              }}
-              onMouseDown={handleCanvasMouseDown}
-              onMouseMove={handleCanvasMouseMove}
-              onMouseUp={handleCanvasMouseUp}
-              onMouseLeave={handleCanvasMouseUp}
-              onTouchStart={handleCanvasTouchStart}
-              onTouchMove={handleCanvasTouchMove}
-              onTouchEnd={handleCanvasTouchEnd}
-            >
-              <div style={{ transform: `scale(${zoom})`, transformOrigin: "top left", width: design.canvasWidth, height: design.canvasHeight, position: "relative" }}>
-                {design.elements.map(renderElement)}
+          {/* Center: Canvas + view selector */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* View selector strip — tabs for each product side */}
+            <ViewSelector />
+
+            {/* Canvas scroll area */}
+            <div className="flex-1 bg-muted/50 overflow-auto flex items-center justify-center relative pb-16 md:pb-0">
+              <div
+                ref={canvasRef}
+                className="relative rounded-lg shadow-xl overflow-hidden touch-none"
+                style={{
+                  width: currentDesign.canvasWidth * zoom,
+                  height: currentDesign.canvasHeight * zoom,
+                  ...getPatternStyle(currentDesign.backgroundPattern, currentDesign.backgroundColor),
+                }}
+                onMouseDown={handleCanvasMouseDown}
+                onMouseMove={handleCanvasMouseMove}
+                onMouseUp={handleCanvasMouseUp}
+                onMouseLeave={handleCanvasMouseUp}
+                onTouchStart={handleCanvasTouchStart}
+                onTouchMove={handleCanvasTouchMove}
+                onTouchEnd={handleCanvasTouchEnd}
+              >
+                {/*
+                  ┌──────────────────────────────────────────────────────┐
+                  │  BASE IMAGE LAYER (z-index 0, pointer-events: none)  │
+                  │  This is the product's own photo for this view.      │
+                  │  It is NEVER modified by user interactions.           │
+                  └──────────────────────────────────────────────────────┘
+                */}
+                {baseImageUrl && (
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{ zIndex: 0 }}
+                  >
+                    <Image
+                      src={baseImageUrl}
+                      alt={activeView?.name ?? product.name}
+                      fill
+                      className="object-contain"
+                      sizes={`${currentDesign.canvasWidth}px`}
+                      priority
+                      unoptimized
+                    />
+                  </div>
+                )}
+
+                {/*
+                  ┌──────────────────────────────────────────────────────┐
+                  │  DESIGN OVERLAY LAYER (z-index 1+)                   │
+                  │  User-placed elements for the ACTIVE view only.      │
+                  │  Stored independently per view and per user.         │
+                  └──────────────────────────────────────────────────────┘
+                */}
+                <div
+                  style={{
+                    transform: `scale(${zoom})`,
+                    transformOrigin: "top left",
+                    width: currentDesign.canvasWidth,
+                    height: currentDesign.canvasHeight,
+                    position: "relative",
+                    zIndex: 1,
+                  }}
+                >
+                  {currentDesign.elements.map(renderElement)}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Right panel: Product info */}
+          {/* Right panel: Product info + views + layers (xl only) */}
           <div className="w-64 bg-card border-l border-border p-4 overflow-y-auto shrink-0 hidden xl:block">
             <h3 className="text-sm font-semibold text-foreground mb-3">Product</h3>
             {mainImage && (
               <div className="relative w-full aspect-square bg-muted rounded-xl overflow-hidden mb-3">
                 <Image src={mainImage.url} alt={product.name} fill className="object-contain" sizes="240px" />
+                <div className="absolute bottom-1 right-1 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded">
+                  Base image
+                </div>
               </div>
             )}
             <h4 className="text-sm font-medium text-foreground">{product.name}</h4>
@@ -1287,38 +1577,53 @@ export default function CustomizeProductPage({
               <p className="text-xs text-primary mt-1">+₦{product.printPrice.toLocaleString()} print fee</p>
             )}
 
-            <div className="border-t border-border mt-4 pt-4">
-              <h3 className="text-sm font-semibold text-foreground mb-2">Design Summary</h3>
-              <div className="space-y-2 text-xs text-muted-foreground">
-                <div className="flex justify-between">
-                  <span>Elements</span>
-                  <span className="font-medium text-foreground">{design.elements.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Background</span>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-4 h-4 rounded border border-border" style={{ backgroundColor: design.backgroundColor }} />
-                    <span className="font-mono">{design.backgroundColor}</span>
-                  </div>
-                </div>
-                <div className="flex justify-between">
-                  <span>Finish</span>
-                  <span className="font-medium text-foreground capitalize">{design.finish}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Canvas</span>
-                  <span className="font-medium text-foreground">{design.canvasWidth} × {design.canvasHeight}</span>
+            {/* Views list */}
+            {productViews.length > 0 && (
+              <div className="border-t border-border mt-4 pt-4">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  Views
+                </h3>
+                <div className="space-y-1.5">
+                  {productViews.map((view) => (
+                    <button
+                      key={view.viewKey}
+                      onClick={() => switchView(view.viewKey)}
+                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition ${
+                        view.viewKey === activeViewKey
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded overflow-hidden bg-muted shrink-0">
+                        <Image
+                          src={view.baseImageUrl}
+                          alt={view.name}
+                          width={32}
+                          height={32}
+                          className="w-full h-full object-cover"
+                          unoptimized
+                        />
+                      </div>
+                      <span className="truncate flex-1">{view.name}</span>
+                      {editedViews.has(view.viewKey) && (
+                        <CheckCircle2 size={12} className="shrink-0 text-primary" />
+                      )}
+                    </button>
+                  ))}
                 </div>
               </div>
-            </div>
+            )}
 
+            {/* Layers for current view */}
             <div className="border-t border-border mt-4 pt-4">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Layers</h3>
-              {design.elements.length === 0 ? (
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Layers — {activeView?.name ?? "Canvas"}
+              </h3>
+              {currentDesign.elements.length === 0 ? (
                 <p className="text-xs text-muted-foreground italic">No elements yet</p>
               ) : (
                 <div className="space-y-1">
-                  {[...design.elements].reverse().map((el) => (
+                  {[...currentDesign.elements].reverse().map((el) => (
                     <button
                       key={el.id}
                       onClick={() => setSelectedElementId(el.id)}
@@ -1328,24 +1633,54 @@ export default function CustomizeProductPage({
                     >
                       {el.type === "text" ? <Type size={12} /> : el.type === "image" ? <ImageIcon size={12} /> : <QrCode size={12} />}
                       <span className="truncate">
-                        {el.type === "text" ? (el as TextElement).text.slice(0, 20) : el.type === "image" ? "Image" : "QR Code"}
+                        {el.type === "text"
+                          ? (el as TextElement).text.slice(0, 20)
+                          : el.type === "image"
+                          ? "Image"
+                          : "QR Code"}
                       </span>
                     </button>
                   ))}
                 </div>
               )}
             </div>
+
+            {/* Design summary */}
+            <div className="border-t border-border mt-4 pt-4">
+              <h3 className="text-sm font-semibold text-foreground mb-2">Design Summary</h3>
+              <div className="space-y-2 text-xs text-muted-foreground">
+                <div className="flex justify-between">
+                  <span>Elements (this view)</span>
+                  <span className="font-medium text-foreground">{currentDesign.elements.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Views edited</span>
+                  <span className="font-medium text-foreground">
+                    {editedViews.size} / {productViews.length || 1}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Finish</span>
+                  <span className="font-medium text-foreground capitalize">{currentDesign.finish}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Canvas</span>
+                  <span className="font-medium text-foreground">
+                    {currentDesign.canvasWidth} × {currentDesign.canvasHeight}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Mobile: Bottom tool bar */}
           <div className="md:hidden fixed bottom-0 left-0 right-0 z-30">
-            {/* Mobile tool panel (bottom sheet) */}
-            {mobilePanelOpen && (
+            {mobilePanelOpenState && (
               <div className="bg-card border-t border-border max-h-[50vh] overflow-y-auto px-4 py-3 shadow-lg">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold text-foreground capitalize">{activeTool}</h3>
                   <button
-                    onClick={() => setMobilePanelOpen(false)}
+                    onClick={() => setMobilePanelOpenState(false)}
                     className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition text-muted-foreground"
                   >
                     <X size={16} />
@@ -1354,8 +1689,6 @@ export default function CustomizeProductPage({
                 {renderToolPanel()}
               </div>
             )}
-
-            {/* Tool icons row */}
             <div className="bg-card border-t border-border px-2 py-2 flex items-center justify-around gap-1">
               {[
                 { id: "select" as ToolType, icon: Move, label: "Select" },
@@ -1370,9 +1703,7 @@ export default function CustomizeProductPage({
                   key={tool.id}
                   onClick={() => handleMobileToolClick(tool.id)}
                   className={`flex flex-col items-center justify-center gap-0.5 py-1.5 px-2 rounded-lg transition min-w-0 ${
-                    activeTool === tool.id
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground"
+                    activeTool === tool.id ? "bg-primary/10 text-primary" : "text-muted-foreground"
                   }`}
                 >
                   <tool.icon size={18} />
