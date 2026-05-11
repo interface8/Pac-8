@@ -315,6 +315,7 @@ export function ProductsClient() {
                           width={40}
                           height={40}
                           className="size-10 rounded object-cover"
+                          unoptimized
                         />
                       ) : (
                         <div className="flex size-10 items-center justify-center rounded bg-muted">

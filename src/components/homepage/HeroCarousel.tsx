@@ -8,19 +8,19 @@ import { useCarouselSlides } from "@/hooks/use-carousels";
 
 const fallbackSlides = [
   {
-    image: "/images/hero-packaging-1.jpg",
+    image: "/images/1.jpeg",
     title: "Custom Packaging, Your Way",
     subtitle: "Design branded cups, boxes, bags & more with our real-time editor.",
     link: "/products",
   },
   {
-    image: "/images/hero-packaging-2.jpg",
+    image: "/images/2.png",
     title: "Bulk Orders, Better Prices",
     subtitle: "Get volume discounts on 100+ units. Perfect for events & businesses.",
     link: "/products?isFeatured=true",
   },
   {
-    image: "/images/hero-packaging-3.jpg",
+    image: "/images/3.webp",
     title: "From Concept to Delivery",
     subtitle: "Browse, customize, and order — we handle printing and shipping.",
     link: "/products",
