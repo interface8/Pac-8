@@ -12,6 +12,8 @@ import {
   Clock,
   CheckCircle2,
   ArrowRight,
+  Palette,
+  Image as ImageIcon,
 } from "lucide-react";
 
 interface OrderSummary {
@@ -21,6 +23,16 @@ interface OrderSummary {
   totalAmount: number;
   createdAt: string;
   items: { productName: string; quantity: number; productImage: string | null }[];
+}
+
+interface DesignSummary {
+  id: string;
+  name: string;
+  status: "DRAFT" | "COMPLETED" | "ARCHIVED";
+  thumbnailUrl: string | null;
+  productName: string;
+  productSlug: string;
+  updatedAt: string;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -35,15 +47,17 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function AccountPage() {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
+  const [designs, setDesigns] = useState<DesignSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
 
   useEffect(() => {
     async function load() {
       try {
-        const [ordersRes, profileRes] = await Promise.all([
+        const [ordersRes, profileRes, designsRes] = await Promise.all([
           fetch("/api/orders"),
           fetch("/api/auth/me"),
+          fetch("/api/designs"),
         ]);
         if (ordersRes.ok) {
           const data = await ordersRes.json();
@@ -53,6 +67,10 @@ export default function AccountPage() {
           const data = await profileRes.json();
           setUser(data.user ?? null);
         }
+        if (designsRes.ok) {
+          const data = await designsRes.json();
+          setDesigns(data.data ?? []);
+        }
       } finally {
         setLoading(false);
       }
@@ -61,6 +79,8 @@ export default function AccountPage() {
   }, []);
 
   const recentOrders = orders.slice(0, 3);
+  const recentDesigns = designs.filter((d) => d.status !== "ARCHIVED").slice(0, 3);
+  const draftCount = designs.filter((d) => d.status === "DRAFT").length;
   const pendingCount = orders.filter((o) =>
     ["PENDING", "CONFIRMED", "PROCESSING"].includes(o.status)
   ).length;
@@ -70,7 +90,7 @@ export default function AccountPage() {
   return (
     <AccountShell title={loading ? "My Account" : `Welcome back, ${user?.name ?? "there"}`} description="Overview of your account activity.">
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-3 mb-8">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         <StatCard
           icon={<Clock className="size-5 text-amber-600" />}
           label="In Progress"
@@ -88,6 +108,12 @@ export default function AccountPage() {
           label="Delivered"
           value={loading ? null : deliveredCount}
           bg="bg-green-50"
+        />
+        <StatCard
+          icon={<Palette className="size-5 text-blue-600" />}
+          label="Saved Drafts"
+          value={loading ? null : draftCount}
+          bg="bg-blue-50"
         />
       </div>
 
@@ -151,6 +177,68 @@ export default function AccountPage() {
                         {new Date(order.createdAt).toLocaleDateString()}
                       </p>
                     </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Recent Designs */}
+      <div className="space-y-4 mt-8">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Recent Designs</h2>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/account/designs">
+              View All <ArrowRight className="ml-1 size-4" />
+            </Link>
+          </Button>
+        </div>
+
+        {loading ? (
+          <div className="grid gap-4 sm:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-32 w-full rounded-xl" />
+            ))}
+          </div>
+        ) : !recentDesigns.length ? (
+          <Card>
+            <CardContent className="py-10 text-center">
+              <Palette className="mx-auto size-9 text-muted-foreground/40 mb-3" />
+              <p className="text-muted-foreground text-sm">No saved designs yet.</p>
+              <Button variant="outline" size="sm" className="mt-3" asChild>
+                <Link href="/products">Browse Products</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-3">
+            {recentDesigns.map((d) => (
+              <Link
+                key={d.id}
+                href={`/products/${d.productSlug}/customize?designId=${d.id}`}
+                className="block"
+              >
+                <Card className="hover:shadow-md transition-shadow overflow-hidden">
+                  <div className="aspect-video bg-muted/30 flex items-center justify-center relative">
+                    {d.thumbnailUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={d.thumbnailUrl}
+                        alt={d.name}
+                        className="object-contain w-full h-full p-2"
+                      />
+                    ) : (
+                      <ImageIcon className="size-8 text-muted-foreground/30" />
+                    )}
+                    <span className="absolute top-1.5 right-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                      {d.status}
+                    </span>
+                  </div>
+                  <CardContent className="p-3">
+                    <p className="text-sm font-medium truncate">{d.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{d.productName}</p>
                   </CardContent>
                 </Card>
               </Link>

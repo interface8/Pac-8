@@ -12,6 +12,10 @@ interface AddToCartParams {
   price: number;
   quantity?: number;
   slug?: string;
+  designThumbnail?: string;
+  customPrint?: boolean;
+  printPrice?: number;
+  designId?: string;
 }
 
 export function useAddToCart() {
@@ -27,6 +31,11 @@ export function useAddToCart() {
           image: product.image,
           price: product.price,
           quantity: qty,
+          slug: product.slug,
+          designThumbnail: product.designThumbnail,
+          customPrint: product.customPrint,
+          printPrice: product.printPrice,
+          designId: product.designId,
         })
       );
       toast.success(

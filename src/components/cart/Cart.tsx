@@ -127,10 +127,18 @@ const Cart = () => {
                     {item.name}
                   </Link>
 
-                  <p className="text-lg font-bold text-primary mb-3 sm:mb-4">
-                    ₦{item.price.toLocaleString()}
-                    <span className="text-xs text-muted-foreground font-normal ml-1">/unit</span>
-                  </p>
+                  <div className="mb-3 sm:mb-4">
+                    <p className="text-lg font-bold text-primary">
+                      ₦{item.price.toLocaleString()}
+                      <span className="text-xs text-muted-foreground font-normal ml-1">/unit</span>
+                    </p>
+                    {item.customPrint && item.printPrice && item.printPrice > 0 && (
+                      <p className="text-xs text-primary/80 flex items-center gap-1 mt-0.5">
+                        <Palette size={11} />
+                        Includes custom print (+₦{item.printPrice.toLocaleString()}/unit)
+                      </p>
+                    )}
+                  </div>
 
                   {/* Quantity + Actions */}
                   <div className="flex items-center gap-3 sm:gap-4 mt-auto flex-wrap">

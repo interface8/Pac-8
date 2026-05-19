@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { MapPin, CreditCard, Package, Shield, ChevronLeft, Loader2 } from "lucide-react";
+import { MapPin, CreditCard, Package, Shield, ChevronLeft, Loader2, Palette } from "lucide-react";
 import type { ShippingAddress, ShippingMethod, PaymentMethod } from "@/lib/constants/checkout";
 import { SHIPPING_RATES } from "@/lib/constants/checkout";
 
@@ -11,6 +11,10 @@ interface CartItem {
   price: number;
   quantity: number;
   image: string;
+  customPrint?: boolean;
+  printPrice?: number;
+  designId?: string;
+  designThumbnail?: string;
 }
 
 interface ReviewStepProps {
@@ -94,10 +98,21 @@ export default function ReviewStep({
             <div key={item.id} className="flex gap-4 py-3 first:pt-0 last:pb-0">
               <div className="relative w-16 h-16 bg-muted rounded-lg overflow-hidden shrink-0">
                 <Image src={item.image} alt={item.name} fill className="object-cover" />
+                {item.customPrint && (
+                  <div className="absolute bottom-0.5 right-0.5 w-5 h-5 bg-primary/90 rounded flex items-center justify-center" title="Custom Design">
+                    <Palette size={10} className="text-primary-foreground" />
+                  </div>
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
                 <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
+                {item.customPrint && (
+                  <p className="text-xs text-primary font-medium mt-0.5 flex items-center gap-1">
+                    <Palette size={10} /> Custom Design
+                    {item.printPrice && item.printPrice > 0 && ` (+₦${item.printPrice.toLocaleString()}/unit)`}
+                  </p>
+                )}
               </div>
               <p className="text-sm font-semibold text-foreground">
                 ₦{(item.price * item.quantity).toLocaleString()}

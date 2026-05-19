@@ -9,12 +9,14 @@ import {
   MapPin,
   ChevronRight,
   Package,
+  Palette,
 } from "lucide-react";
 import { cn } from "@/components/ui/utils";
 
 const accountNav = [
   { label: "Overview", href: "/account", icon: User },
   { label: "My Orders", href: "/account/orders", icon: ShoppingBag },
+  { label: "My Designs", href: "/account/designs", icon: Palette },
   { label: "Addresses", href: "/account/addresses", icon: MapPin },
   { label: "Wishlist", href: "/account/wishlist", icon: Heart },
 ];

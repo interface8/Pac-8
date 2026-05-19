@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import {
   ChevronLeft,
   Type,
@@ -536,7 +537,7 @@ const TEMPLATES: { id: string; name: string; thumbnail: string; elements: Design
         y: 248,
         width: 260,
         height: 28,
-        text: "Est. 2024 Â· Premium Quality",
+        text: "Est. 2024 · Premium Quality",
         fontFamily: "Inter",
         fontSize: 11,
         fontWeight: "normal",
@@ -806,6 +807,7 @@ export default function CustomizeProductPage({
   const { slug } = params;
   const { product, loading, error } = useProduct(slug);
   const addToCartDispatch = useAddToCart();
+  const searchParams = useSearchParams();
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -925,6 +927,38 @@ export default function CustomizeProductPage({
       })
       .finally(() => setViewsLoading(false));
   }, [product]);
+
+  // ── Load existing design from ?designId= URL param ──────────────
+  const designIdParam = searchParams?.get("designId");
+  useEffect(() => {
+    if (!designIdParam || !product) return;
+    fetch(`/api/designs/${designIdParam}`)
+      .then((r) => r.json())
+      .then((json) => {
+        const d = json?.data;
+        if (!d || d.productId !== product.id) return;
+        if (d.name) setDesignName(d.name);
+        setExistingDesignId(d.id);
+        if (d.designData) {
+          try {
+            const parsed = JSON.parse(d.designData);
+            // Support multi-view (version 3) format
+            if (parsed.version === "3" && parsed.views) {
+              setViewDesigns((prev) => {
+                const merged: Record<string, ViewDesignState> = { ...prev };
+                Object.keys(parsed.views).forEach((key) => {
+                  merged[key] = parsed.views[key];
+                });
+                return merged;
+              });
+            }
+          } catch { /* ignore malformed data */ }
+        }
+        toast.info("Design loaded — continue where you left off!", { autoClose: 3000 });
+      })
+      .catch(() => { /* silent — design may not exist for this user */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [designIdParam, product]);
 
   // â”€â”€ Auto-save every 90 seconds â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
@@ -1209,26 +1243,63 @@ export default function CustomizeProductPage({
     toast.success(`Template "${template.name}" applied`);
   };
 
+  // ── Generate SVG thumbnail from the active view ───────────────────────────
+  const generateThumbnail = useCallback((vd: Record<string, ViewDesignState>, viewKey: string): string => {
+    const ad = vd[viewKey];
+    const tw = 300, th = 300;
+    const cw = (ad as { canvasWidth?: number })?.canvasWidth ?? 600;
+    const ch = (ad as { canvasHeight?: number })?.canvasHeight ?? 600;
+    const scaleX = tw / cw;
+    const scaleY = th / ch;
+    const bg = (ad as { backgroundColor?: string })?.backgroundColor ?? "#ffffff";
+    const elems: DesignElement[] = (ad as { elements?: DesignElement[] })?.elements ?? [];
+    const escXml = (s: string) =>
+      s.replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;" }[c] ?? c));
+    const shapeSvg = elems
+      .filter((e): e is ShapeElement => e.type === "shape").slice(0, 5)
+      .map((e) => {
+        const x = Math.round((e.x - e.width / 2) * scaleX);
+        const y = Math.round((e.y - e.height / 2) * scaleY);
+        return `<rect x="${x}" y="${y}" width="${Math.max(1, Math.round(e.width * scaleX))}" height="${Math.max(1, Math.round(e.height * scaleY))}" fill="${e.fillColor}" opacity="${e.opacity}"/>`;
+      }).join("");
+    const textSvg = elems
+      .filter((e): e is TextElement => e.type === "text").slice(0, 5)
+      .map((e) => {
+        const fs = Math.max(6, Math.round(e.fontSize * Math.min(scaleX, scaleY)));
+        return `<text x="${Math.round(e.x * scaleX)}" y="${Math.round(e.y * scaleY)}" font-family="sans-serif" font-size="${fs}" fill="${e.color}" text-anchor="middle" opacity="${e.opacity}">${escXml(e.text.slice(0, 30))}</text>`;
+      }).join("");
+    const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${tw}" height="${th}" viewBox="0 0 ${tw} ${th}"><rect width="${tw}" height="${th}" fill="${bg}"/>${shapeSvg}${textSvg}</svg>`;
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgStr)}`;
+  }, []);
+
   // â”€â”€ Save design â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const saveDesign = async () => {
-    if (!product) return;
+  const saveDesign = async (): Promise<string | null> => {
+    if (!product) return null;
     setSaving(true);
     try {
       const payload: MultiViewDesignData = { version: "3", views: viewDesigns };
+      const thumbnailDataUrl = generateThumbnail(viewDesigns, activeViewKey);
       const url = existingDesignId ? `/api/designs/${existingDesignId}` : "/api/designs";
       const method = existingDesignId ? "PATCH" : "POST";
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: product.id, name: designName, designData: JSON.stringify(payload) }),
+        body: JSON.stringify({ productId: product.id, name: designName, designData: JSON.stringify(payload), thumbnailUrl: thumbnailDataUrl }),
       });
-      if (!res.ok) { const j = await res.json(); throw new Error(j.message ?? "Failed to save"); }
+      if (!res.ok) {
+        if (res.status === 401) throw new Error("Please sign in to save your design.");
+        const j = await res.json();
+        throw new Error(j.message ?? "Failed to save");
+      }
       const json = await res.json();
+      const savedId = json?.data?.id ?? existingDesignId;
       if (!existingDesignId && json?.data?.id) setExistingDesignId(json.data.id);
       setLastSaved(new Date());
       toast.success("Design saved as draft!");
+      return savedId;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save design");
+      return existingDesignId;
     } finally {
       setSaving(false);
     }
@@ -1239,16 +1310,26 @@ export default function CustomizeProductPage({
     if (!product) return;
     setAddingToCart(true);
     try {
-      // Save design first to get/update the design ID
-      await saveDesign();
-      // Add to Redux cart store
+      // Save design first and get the resolved design ID (state update is async)
+      const savedDesignId = await saveDesign();
+
+      // Generate thumbnail using shared helper
+      const designThumbnail = generateThumbnail(viewDesigns, activeViewKey);
+
+      // Add to Redux cart with all custom-print details
       const mainImg = product.images?.find((i: { isMain: boolean }) => i.isMain) ?? product.images?.[0];
+      const printPrice = product.allowCustomPrint ? Number(product.printPrice ?? 0) : 0;
       addToCartDispatch({
         id: product.id,
         name: product.name,
         image: mainImg?.url ?? "",
-        price: product.price,
+        price: product.price + printPrice,
         quantity,
+        slug: product.slug,
+        designThumbnail,
+        customPrint: product.allowCustomPrint ?? false,
+        printPrice,
+        designId: savedDesignId ?? undefined,
       });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to add to cart");
@@ -1372,7 +1453,7 @@ export default function CustomizeProductPage({
       <div className="flex items-center justify-center h-[60vh]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-muted-foreground">Loading editorâ€¦</p>
+          <p className="text-sm text-muted-foreground">Loading editor…</p>
         </div>
       </div>
     );
@@ -2187,7 +2268,7 @@ export default function CustomizeProductPage({
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setShowPreview(false)}>
       <div className="bg-card rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="text-lg font-bold text-foreground">Design Preview â€” All Views</h2>
+          <h2 className="text-lg font-bold text-foreground">Design Preview – All Views</h2>
           <button onClick={() => setShowPreview(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition text-muted-foreground">
             <X size={18} />
           </button>
@@ -2202,7 +2283,7 @@ export default function CustomizeProductPage({
             <div>
               <h3 className="font-semibold text-foreground">{product.name}</h3>
               <p className="text-sm text-muted-foreground">{designName}</p>
-              <p className="text-xs text-primary mt-0.5">Qty: {quantity} Â· â‚¦{(product.price * quantity).toLocaleString()}</p>
+              <p className="text-xs text-primary mt-0.5">Qty: {quantity} · ₦{(product.price * quantity).toLocaleString()}</p>
             </div>
           </div>
 
@@ -2236,7 +2317,7 @@ export default function CustomizeProductPage({
                         </div>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">{vd?.elements.length ?? 0} element(s) Â· {vd?.finish ?? "matte"} finish</p>
+                    <p className="text-xs text-muted-foreground mt-1">{vd?.elements.length ?? 0} element(s) · {vd?.finish ?? "matte"} finish</p>
                   </div>
                 );
               })}
@@ -2327,12 +2408,12 @@ export default function CustomizeProductPage({
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Unit price</span>
-                <span className="font-medium">â‚¦{product.price.toLocaleString()}</span>
+                <span className="font-medium">₦{product.price.toLocaleString()}</span>
               </div>
               {(product.printPrice ?? 0) > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Print fee</span>
-                  <span className="font-medium text-primary">+â‚¦{(product.printPrice ?? 0).toLocaleString()}</span>
+                  <span className="font-medium text-primary">+₦{(product.printPrice ?? 0).toLocaleString()}</span>
                 </div>
               )}
               <div className="flex justify-between">
@@ -2373,7 +2454,7 @@ export default function CustomizeProductPage({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Layers â€” {activeView?.name ?? "Canvas"}
+                Layers – {activeView?.name ?? "Canvas"}
               </h3>
               <span className="text-xs text-muted-foreground">{currentDesign.elements.length} items</span>
             </div>
@@ -2451,21 +2532,21 @@ export default function CustomizeProductPage({
             <div className="space-y-2 p-3 bg-muted/50 rounded-xl text-xs">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Unit price</span>
-                <span>â‚¦{product.price.toLocaleString()}</span>
+                <span>₦{product.price.toLocaleString()}</span>
               </div>
               {product.allowCustomPrint && (product.printPrice ?? 0) > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Print fee</span>
-                  <span className="text-primary">+â‚¦{(product.printPrice ?? 0).toLocaleString()}</span>
+                  <span className="text-primary">+₦{(product.printPrice ?? 0).toLocaleString()}</span>
                 </div>
               )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Quantity</span>
-                <span>Ã— {quantity}</span>
+                <span>× {quantity}</span>
               </div>
               <div className="border-t border-border pt-2 flex justify-between font-semibold text-sm">
                 <span className="text-foreground">Subtotal</span>
-                <span className="text-primary">â‚¦{((product.price + (product.allowCustomPrint ? (product.printPrice ?? 0) : 0)) * quantity).toLocaleString()}</span>
+                <span className="text-primary">₦{((product.price + (product.allowCustomPrint ? (product.printPrice ?? 0) : 0)) * quantity).toLocaleString()}</span>
               </div>
               <p className="text-muted-foreground text-[10px]">+ 7.5% VAT at checkout</p>
             </div>
@@ -2536,7 +2617,7 @@ export default function CustomizeProductPage({
                 value={designName}
                 onChange={(e) => setDesignName(e.target.value)}
                 className="text-sm font-semibold text-foreground bg-transparent border-none outline-none min-w-0 truncate focus:ring-0 max-w-[180px]"
-                placeholder="Design nameâ€¦"
+                placeholder="Design name…"
               />
               {lastSaved && (
                 <span className="hidden sm:inline text-xs text-green-600 shrink-0">
@@ -2600,14 +2681,14 @@ export default function CustomizeProductPage({
               <button onClick={saveDesign} disabled={saving}
                 className="h-9 w-9 sm:w-auto sm:px-3 bg-muted text-foreground border border-border rounded-lg text-sm font-medium hover:bg-muted/80 transition flex items-center justify-center gap-1.5 disabled:opacity-50">
                 <Save size={15} />
-                <span className="hidden sm:inline">{saving ? "Savingâ€¦" : "Save Draft"}</span>
+                <span className="hidden sm:inline">{saving ? "Saving…" : "Save Draft"}</span>
               </button>
 
               {/* Add to Cart */}
               <button onClick={handleAddToCart} disabled={addingToCart || saving}
                 className="h-9 px-3 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition flex items-center justify-center gap-1.5 disabled:opacity-50">
                 <ShoppingCart size={15} />
-                <span className="hidden sm:inline">{addingToCart ? "Addingâ€¦" : "Add to Cart"}</span>
+                <span className="hidden sm:inline">{addingToCart ? "Adding…" : "Add to Cart"}</span>
               </button>
             </div>
           </div>

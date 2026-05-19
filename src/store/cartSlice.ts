@@ -9,6 +9,9 @@ type CartItem = {
   savedForLater?: boolean;
   designThumbnail?: string;
   slug?: string;
+  customPrint?: boolean;
+  printPrice?: number;
+  designId?: string;
 };
 
 interface PromoState {
@@ -35,14 +38,19 @@ const cartSlice = createSlice({
   initialState,
   reducers: {
     addItem: (state, action: PayloadAction<CartItem>) => {
+      const pl = action.payload;
       const existingItem = state.items.find(
-        (item) => item.id === action.payload.id && !item.savedForLater,
+        (item) =>
+          item.id === pl.id &&
+          !item.savedForLater &&
+          Boolean(item.customPrint) === Boolean(pl.customPrint) &&
+          (item.designId ?? null) === (pl.designId ?? null),
       );
 
       if (existingItem) {
-        existingItem.quantity += action.payload.quantity || 1;
+        existingItem.quantity += pl.quantity || 1;
       } else {
-        state.items.push({ ...action.payload, savedForLater: false });
+        state.items.push({ ...pl, savedForLater: false });
       }
     },
 

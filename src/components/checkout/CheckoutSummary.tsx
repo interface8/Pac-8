@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { Palette } from "lucide-react";
 
 interface CartItem {
   id: string;
@@ -8,6 +9,8 @@ interface CartItem {
   price: number;
   quantity: number;
   image: string;
+  customPrint?: boolean;
+  printPrice?: number;
 }
 
 interface CheckoutSummaryProps {
@@ -37,10 +40,18 @@ export default function CheckoutSummary({
           <div key={item.id} className="flex gap-3">
             <div className="relative w-12 h-12 bg-muted rounded-lg overflow-hidden shrink-0">
               <Image src={item.image} alt={item.name} fill className="object-cover" />
+              {item.customPrint && (
+                <div className="absolute bottom-0 right-0 w-4 h-4 bg-primary/90 rounded-tl flex items-center justify-center" title="Custom Design">
+                  <Palette size={8} className="text-primary-foreground" />
+                </div>
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-foreground truncate">{item.name}</p>
               <p className="text-xs text-muted-foreground">×{item.quantity}</p>
+              {item.customPrint && (
+                <p className="text-xs text-primary">Custom Print</p>
+              )}
             </div>
             <p className="text-xs font-semibold text-foreground">₦{(item.price * item.quantity).toLocaleString()}</p>
           </div>

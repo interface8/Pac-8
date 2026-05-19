@@ -160,7 +160,12 @@ export default function CheckoutPage() {
         shippingAddressId: shippingAddressId || undefined,
         shippingMethod,
         paymentMethod: paymentMethod === "stripe" ? "STRIPE" : "BANK_TRANSFER",
-        items: cartItems.map((item) => ({ productId: item.id, quantity: item.quantity })),
+        items: cartItems.map((item) => ({
+          productId: item.id,
+          quantity: item.quantity,
+          customPrint: item.customPrint ?? false,
+          printText: item.designId,
+        })),
       };
 
       const res = await fetch("/api/orders", {

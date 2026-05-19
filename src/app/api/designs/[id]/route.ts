@@ -108,16 +108,13 @@ export async function DELETE(
     if (!user) return errorResponse("Unauthorized", 401);
 
     const { id } = await params;
-    const existing = await prisma.savedDesign.findUnique({
-      where: { id },
-    });
+    const existing = await prisma.savedDesign.findUnique({ where: { id } });
 
     if (!existing || existing.userId !== user.id) {
       return errorResponse("Design not found", 404);
     }
 
     await prisma.savedDesign.delete({ where: { id } });
-
     return jsonResponse({ message: "Design deleted successfully" });
   } catch {
     return errorResponse("Internal server error", 500);

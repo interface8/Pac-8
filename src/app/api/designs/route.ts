@@ -17,17 +17,45 @@ export async function GET() {
       },
     });
 
+    // Fetch product info for all designs in one query
+    const productIds = Array.from(new Set(designs.map((d) => d.productId)));
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        price: true,
+        allowCustomPrint: true,
+        printPrice: true,
+        images: {
+          where: { isMain: true },
+          select: { url: true },
+          take: 1,
+        },
+      },
+    });
+    const productMap = new Map(products.map((p) => [p.id, p]));
+
     return jsonResponse({
-      data: designs.map((d) => ({
-        id: d.id,
-        productId: d.productId,
-        name: d.name,
-        status: d.status,
-        thumbnailUrl: d.thumbnailUrl,
-        createdAt: d.createdAt.toISOString(),
-        updatedAt: d.updatedAt.toISOString(),
-        inCart: d.cartItems.length > 0,
-      })),
+      data: designs.map((d) => {
+        const p = productMap.get(d.productId);
+        return {
+          id: d.id,
+          productId: d.productId,
+          productName: p?.name ?? null,
+          productSlug: p?.slug ?? null,
+          productImage: p?.images?.[0]?.url ?? null,
+          productPrice: p ? Number(p.price) : null,
+          printPrice: p?.printPrice ? Number(p.printPrice) : 0,
+          name: d.name,
+          status: d.status,
+          thumbnailUrl: d.thumbnailUrl,
+          createdAt: d.createdAt.toISOString(),
+          updatedAt: d.updatedAt.toISOString(),
+          inCart: d.cartItems.length > 0,
+        };
+      }),
     });
   } catch {
     return errorResponse("Internal server error", 500);
