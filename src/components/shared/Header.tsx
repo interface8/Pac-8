@@ -63,6 +63,8 @@ export default function Header({ user }: { user?: HeaderUser | null }) {
 
   const cartItems = useSelector((state: RootState) => state.cart.items);
   const cartCount = cartItems.reduce((sum, i) => sum + i.quantity, 0);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -230,7 +232,7 @@ export default function Header({ user }: { user?: HeaderUser | null }) {
                     size={19}
                     className="text-muted-foreground group-hover:text-primary transition-colors"
                   />
-                  {cartCount > 0 && (
+                  {mounted && cartCount > 0 && (
                     <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center px-1 ring-2 ring-card">
                       {cartCount > 99 ? "99+" : cartCount}
                     </span>
@@ -251,7 +253,7 @@ export default function Header({ user }: { user?: HeaderUser | null }) {
         onClose={() => setMobileOpen(false)}
         categories={categories}
         loading={catLoading}
-        cartCount={cartCount}
+        cartCount={mounted ? cartCount : 0}
         user={user ?? null}
         onLogout={handleLogout}
       />
