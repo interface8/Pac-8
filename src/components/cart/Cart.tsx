@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSelector, useDispatch } from "react-redux";
@@ -12,6 +13,7 @@ import {
   ShoppingCart,
   ShoppingBag,
   Palette,
+  Pencil,
 } from "lucide-react";
 import {
   increaseQuantity,
@@ -28,6 +30,8 @@ const Cart = () => {
   const allItems = useSelector((state: RootState) => state.cart.items);
   const promo = useSelector((state: RootState) => state.cart.promo);
   const dispatch = useDispatch<AppDispatch>();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   const cartItems = allItems.filter((item) => !item.savedForLater);
   const savedItems = allItems.filter((item) => item.savedForLater);
@@ -49,6 +53,14 @@ const Cart = () => {
     applyPromo,
     removePromo,
   } = usePromoCode(subtotal);
+
+  if (!mounted) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-6">
+        <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (cartItems.length === 0 && savedItems.length === 0) {
     return (
@@ -100,13 +112,13 @@ const Cart = () => {
                 key={item.id}
                 className="bg-card rounded-xl shadow-sm border border-border p-4 sm:p-5 flex flex-col sm:flex-row gap-4 sm:gap-5 hover:shadow-md transition-shadow group"
               >
-                {/* Product Image */}
+                {/* Product Image / Design Thumbnail */}
                 <Link
                   href={item.slug ? `/products/${item.slug}` : "/products"}
                   className="relative w-full sm:w-28 md:w-32 h-44 sm:h-32 border border-border rounded-xl overflow-hidden shrink-0"
                 >
                   <Image
-                    src={item.image}
+                    src={item.image || "/images/placeholder.png"}
                     alt={item.name}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-300"
@@ -172,6 +184,16 @@ const Cart = () => {
                       Save for later
                     </button>
 
+                    {item.slug && item.customPrint && (
+                      <Link
+                        href={`/products/${item.slug}/customize${item.designId ? `?designId=${item.designId}` : ""}`}
+                        className="flex items-center gap-1.5 text-primary hover:text-primary/80 text-xs font-medium transition-colors"
+                      >
+                        <Pencil size={14} />
+                        Edit Design
+                      </Link>
+                    )}
+
                     <button
                       onClick={() => dispatch(removeFromCart(item.id))}
                       className="flex items-center gap-1.5 text-red-500 hover:text-red-600 text-xs font-medium transition-colors"
@@ -212,7 +234,7 @@ const Cart = () => {
                       className="bg-card rounded-xl shadow-sm border border-border p-4 flex gap-4"
                     >
                       <div className="relative w-20 h-20 border border-border rounded-lg overflow-hidden shrink-0">
-                        <Image src={item.image} alt={item.name} fill className="object-cover" />
+                        <Image src={item.image || "/images/placeholder.png"} alt={item.name} fill className="object-cover" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-foreground truncate">{item.name}</p>

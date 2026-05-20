@@ -40,8 +40,10 @@ export default function HeroCarousel() {
         link: s.link || "/products",
       }));
     }
-    return fallbackSlides;
-  }, [dbSlides]);
+    // Only fall back to local images after the API has finished loading
+    if (!loading) return fallbackSlides;
+    return [];
+  }, [dbSlides, loading]);
 
   const next = useCallback(() => {
     setCurrent((prev) => (prev + 1) % slides.length);
@@ -60,7 +62,7 @@ export default function HeroCarousel() {
   return (
     <div className="relative w-full aspect-[16/7] min-h-[320px] md:min-h-[400px] rounded-2xl overflow-hidden group">
       {loading && (
-        <div className="absolute inset-0 bg-muted animate-pulse rounded-2xl" />
+        <div className="absolute inset-0 z-10 bg-muted animate-pulse rounded-2xl" />
       )}
 
       {/* Slides */}

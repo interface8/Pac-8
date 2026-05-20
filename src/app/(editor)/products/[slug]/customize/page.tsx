@@ -1310,9 +1310,6 @@ export default function CustomizeProductPage({
     if (!product) return;
     setAddingToCart(true);
     try {
-      // Save design first and get the resolved design ID (state update is async)
-      const savedDesignId = await saveDesign();
-
       // Generate thumbnail using shared helper
       const designThumbnail = generateThumbnail(viewDesigns, activeViewKey);
 
@@ -1329,7 +1326,7 @@ export default function CustomizeProductPage({
         designThumbnail,
         customPrint: product.allowCustomPrint ?? false,
         printPrice,
-        designId: savedDesignId ?? undefined,
+        designId: existingDesignId ?? undefined,
       });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to add to cart");
