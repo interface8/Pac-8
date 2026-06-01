@@ -4,7 +4,11 @@ import { useCallback, useEffect, useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
-import { useCarouselSlides } from "@/hooks/use-carousels";
+import { useCarouselSlides, ApiCarouselSlide } from "@/hooks/use-carousels";
+
+interface HeroCarouselProps {
+  initialSlides?: ApiCarouselSlide[];
+}
 
 const fallbackSlides = [
   {
@@ -27,11 +31,22 @@ const fallbackSlides = [
   },
 ];
 
-export default function HeroCarousel() {
+export default function HeroCarousel({ initialSlides }: HeroCarouselProps) {
   const [current, setCurrent] = useState(0);
-  const { slides: dbSlides, loading } = useCarouselSlides("homepage");
+  const hasServerSlides = Boolean(initialSlides && initialSlides.length > 0);
+  const { slides: dbSlides } = useCarouselSlides("homepage", hasServerSlides);
 
   const slides = useMemo(() => {
+    // Use SSR-provided slides immediately (no loading wait)
+    if (hasServerSlides) {
+      return initialSlides!.map((s) => ({
+        image: s.imageUrl,
+        title: s.title,
+        subtitle: s.description,
+        link: s.link || "/products",
+      }));
+    }
+    // Use client-fetched DB slides if available
     if (dbSlides.length > 0) {
       return dbSlides.map((s) => ({
         image: s.imageUrl,
@@ -40,10 +55,9 @@ export default function HeroCarousel() {
         link: s.link || "/products",
       }));
     }
-    // Only fall back to local images after the API has finished loading
-    if (!loading) return fallbackSlides;
-    return [];
-  }, [dbSlides, loading]);
+    // Always show fallback immediately (even while loading) so carousel is never blank
+    return fallbackSlides;
+  }, [hasServerSlides, initialSlides, dbSlides]);
 
   const next = useCallback(() => {
     setCurrent((prev) => (prev + 1) % slides.length);
@@ -61,10 +75,6 @@ export default function HeroCarousel() {
 
   return (
     <div className="relative w-full aspect-[16/7] min-h-[320px] md:min-h-[400px] rounded-2xl overflow-hidden group">
-      {loading && (
-        <div className="absolute inset-0 z-10 bg-muted animate-pulse rounded-2xl" />
-      )}
-
       {/* Slides */}
       {slides.map((slide, index) => (
         <div
@@ -77,8 +87,9 @@ export default function HeroCarousel() {
             src={slide.image}
             alt={slide.title}
             fill
+            sizes="100vw"
             className="object-cover"
-            priority={index === 0}
+            priority={index < 2}
           />
           {/* Gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />

@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     if (!user) return errorResponse("Unauthorized", 401);
 
     const body = await request.json();
-    const { productId, name, designData } = body;
+    const { productId, name, designData, thumbnailUrl } = body;
 
     if (!productId || !designData) {
       return errorResponse("productId and designData are required", 400);
@@ -96,6 +96,7 @@ export async function POST(request: NextRequest) {
         name: name ?? "Untitled Design",
         designData,
         status: "DRAFT",
+        ...(thumbnailUrl !== undefined && { thumbnailUrl }),
       },
     });
 

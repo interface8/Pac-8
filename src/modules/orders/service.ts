@@ -1,5 +1,6 @@
 import * as orderRepo from "./repository";
 import { productService } from "@/modules/products";
+import { prisma } from "@/lib/prisma";
 import type { CreateOrderInput, UpdateOrderInput, OrderFilters, OrderStatus } from "./types";
 
 // ─── Valid status transitions ──────────────────────────
@@ -65,23 +66,53 @@ export async function createOrder(input: CreateOrderInput) {
     const unitPrice = product.price + printPrice;
     const totalPrice = unitPrice * item.quantity;
 
+    // Snapshot design data if a saved design is referenced
+    let designDataSnapshot: string | undefined;
+    if (item.savedDesignId) {
+      const design = await prisma.savedDesign.findUnique({
+        where: { id: item.savedDesignId },
+        select: { designData: true, thumbnailUrl: true },
+      });
+      if (design) {
+        // Parse and embed the thumbnail inside the snapshot so the admin
+        // preview works even if savedDesign.thumbnailUrl is later changed/null.
+        let parsed: Record<string, unknown> = {};
+        try { parsed = JSON.parse(design.designData ?? "{}"); } catch { /* invalid JSON — start fresh */ }
+        const thumbnail = design.thumbnailUrl ?? item.designThumbnail;
+        if (thumbnail) parsed._thumbnailUrl = thumbnail;
+        designDataSnapshot = JSON.stringify(parsed);
+      }
+    } else if (item.designThumbnail) {
+      // No savedDesign link — store the cart thumbnail so admin can still preview
+      designDataSnapshot = JSON.stringify({ _thumbnailUrl: item.designThumbnail });
+    }
+
     orderItems.push({
       productId: product.id,
       quantity: item.quantity,
       customPrint: item.customPrint ?? false,
       printText: item.printText,
+      basePrice: product.price,
+      printSurcharge: printPrice,
       unitPrice,
       totalPrice,
       productName: product.name,
       productSku: product.sku,
       productImage: product.images.find((img) => img.isMain)?.url,
+      savedDesignId: item.savedDesignId,
+      designData: designDataSnapshot,
     });
 
     subtotal += totalPrice;
   }
 
   const orderNumber = await orderRepo.generateOrderNumber();
-  const totalAmount = subtotal; // Tax/shipping/discount can be added later
+
+  // Use client-provided pricing if given, otherwise calculate from scratch
+  const taxAmount = input.taxAmount ?? Math.round((subtotal - (input.discountAmount ?? 0)) * 0.075 * 100) / 100;
+  const shippingAmount = input.shippingAmount ?? 0;
+  const discountAmount = input.discountAmount ?? 0;
+  const totalAmount = subtotal + taxAmount + shippingAmount - discountAmount;
 
   return orderRepo.createOrder({
     orderNumber,
@@ -90,12 +121,16 @@ export async function createOrder(input: CreateOrderInput) {
     customerPhone: input.customerPhone,
     customerName: input.customerName,
     subtotal,
+    taxAmount,
+    shippingAmount,
+    discountAmount,
     totalAmount,
     shippingAddressId: input.shippingAddressId,
     billingAddressId: input.billingAddressId,
     shippingMethod: input.shippingMethod,
     paymentMethod: input.paymentMethod,
     customerNotes: input.customerNotes,
+    promoCodeId: input.promoCodeId,
     items: orderItems,
   });
 }

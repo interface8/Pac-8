@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { stripe, isStripeConfigured } from "@/lib/stripe";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import Stripe from "stripe";
 
 // POST /api/webhooks/stripe
 export async function POST(request: NextRequest) {
+  if (!isStripeConfigured || !stripe) {
+    return NextResponse.json({ error: "Stripe not configured" }, { status: 503 });
+  }
+
   const body = await request.text();
   const signature = request.headers.get("stripe-signature");
 

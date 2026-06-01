@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import NextImage from "next/image";
 import { usePermission } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -24,7 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Search, ChevronLeft, ChevronRight, Eye, CheckCircle2, XCircle,
   Truck, Package, CreditCard, Clock, ShoppingCart, Ban, RotateCcw,
-  MapPin,
+  MapPin, Download, Image as ImageIcon, Tag, Hash, User, Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -37,10 +37,35 @@ interface OrderItem {
   productSku: string;
   productImage: string | null;
   quantity: number;
-  unitPrice: number;
-  totalPrice: number;
+  basePrice: number;        // Product price before print surcharge
+  printSurcharge: number;   // Per-unit custom print/design charge
+  unitPrice: number;        // basePrice + printSurcharge
+  totalPrice: number;       // unitPrice × quantity
   customPrint: boolean;
   printText: string | null;
+  savedDesignId: string | null;
+  designData: string | null;
+  designThumbnailUrl: string | null;
+}
+
+interface OrderShippingAddress {
+  firstName: string;
+  lastName: string;
+  company: string | null;
+  addressLine1: string;
+  addressLine2: string | null;
+  city: string;
+  state: string;
+  country: string;
+  phone: string | null;
+}
+
+interface OrderPromoCode {
+  id: string;
+  code: string;
+  discountType: string;
+  discountValue: number;
+  description: string | null;
 }
 
 interface OrderDto {
@@ -63,6 +88,8 @@ interface OrderDto {
   paymentReference: string | null;
   customerNotes: string | null;
   adminNotes: string | null;
+  shippingAddress: OrderShippingAddress | null;
+  promoCode: OrderPromoCode | null;
   items: OrderItem[];
   createdAt: string;
   updatedAt: string;
@@ -298,8 +325,21 @@ export function OrdersClient() {
       <Dialog open={!!selectedOrder} onOpenChange={(open) => !open && setSelectedOrder(null)}>
         <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Order Details</DialogTitle>
-            <DialogDescription>{orderDetail?.data?.orderNumber}</DialogDescription>
+            <DialogTitle className="flex items-center gap-2">
+              <Hash className="size-4 text-muted-foreground" />
+              {orderDetail?.data?.orderNumber ?? "Order Details"}
+            </DialogTitle>
+            <DialogDescription className="flex flex-wrap gap-3 text-xs mt-1">
+              {orderDetail?.data && (
+                <>
+                  <span className="flex items-center gap-1">
+                    <User className="size-3" /> {orderDetail.data.customerName}
+                  </span>
+                  <span className="text-muted-foreground/50">|</span>
+                  <span className="font-mono text-muted-foreground/80">ID: {orderDetail.data.id}</span>
+                </>
+              )}
+            </DialogDescription>
           </DialogHeader>
           {detailLoading ? (
             <div className="space-y-4"><Skeleton className="h-6 w-48" /><Skeleton className="h-20 w-full" /></div>
@@ -321,6 +361,282 @@ export function OrdersClient() {
     </>
   );
 }
+
+// ─── Design helpers ────────────────────────────────────────────────────────
+
+function capitalize(str: string) {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+interface DesignView {
+  label: string;
+  url: string;
+}
+
+/** Recreate an SVG thumbnail from raw ViewDesignState element data. */
+function generateViewThumbnail(view: Record<string, unknown>): string | null {
+  const tw = 300, th = 300;
+  const cw = typeof view.canvasWidth === "number" ? view.canvasWidth : 600;
+  const ch = typeof view.canvasHeight === "number" ? view.canvasHeight : 600;
+  const scaleX = tw / cw;
+  const scaleY = th / ch;
+  const bg = typeof view.backgroundColor === "string" ? view.backgroundColor : "#ffffff";
+  const elems = Array.isArray(view.elements) ? view.elements as Record<string, unknown>[] : [];
+
+  if (elems.length === 0) return null;
+
+  const escXml = (s: string) =>
+    s.replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;" }[c] ?? c));
+
+  const parts: string[] = [];
+
+  for (const e of elems.slice(0, 20)) {
+    const ex = (e.x as number) ?? 0;
+    const ey = (e.y as number) ?? 0;
+    const ew = (e.width as number) ?? 50;
+    const eh = (e.height as number) ?? 50;
+    const opacity = typeof e.opacity === "number" ? e.opacity : 1;
+    const x = Math.round((ex - ew / 2) * scaleX);
+    const y = Math.round((ey - eh / 2) * scaleY);
+    const w = Math.max(1, Math.round(ew * scaleX));
+    const h = Math.max(1, Math.round(eh * scaleY));
+
+    if (e.type === "shape") {
+      const fill = typeof e.fillColor === "string" ? e.fillColor : "#cccccc";
+      const shape = e.shape as string;
+      if (shape === "circle") {
+        parts.push(`<ellipse cx="${x + Math.round(w / 2)}" cy="${y + Math.round(h / 2)}" rx="${Math.round(w / 2)}" ry="${Math.round(h / 2)}" fill="${fill}" opacity="${opacity}"/>`);
+      } else if (shape === "triangle") {
+        const pts = `${x + Math.round(w / 2)},${y} ${x},${y + h} ${x + w},${y + h}`;
+        parts.push(`<polygon points="${pts}" fill="${fill}" opacity="${opacity}"/>`);
+      } else {
+        parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}" opacity="${opacity}"/>`);
+      }
+    } else if (e.type === "text") {
+      const fs = Math.max(6, Math.round((e.fontSize as number ?? 16) * Math.min(scaleX, scaleY)));
+      const fill = typeof e.color === "string" ? e.color : "#000000";
+      const text = typeof e.text === "string" ? escXml(e.text.slice(0, 60)) : "";
+      parts.push(`<text x="${Math.round(ex * scaleX)}" y="${Math.round(ey * scaleY)}" font-family="sans-serif" font-size="${fs}" fill="${fill}" text-anchor="middle" dominant-baseline="middle" opacity="${opacity}">${text}</text>`);
+    } else if (e.type === "image") {
+      const src = e.src as string | undefined;
+      if (src && src.startsWith("data:")) {
+        parts.push(`<image href="${escXml(src)}" x="${x}" y="${y}" width="${w}" height="${h}" opacity="${opacity}" preserveAspectRatio="xMidYMid meet"/>`);
+      } else {
+        // placeholder for external images
+        parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#e2e8f0" rx="4" opacity="${opacity}"/><text x="${x + Math.round(w / 2)}" y="${y + Math.round(h / 2)}" font-family="sans-serif" font-size="9" fill="#94a3b8" text-anchor="middle" dominant-baseline="middle">img</text>`);
+      }
+    } else if (e.type === "qr") {
+      // placeholder for QR codes
+      parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${e.bgColor ?? "#ffffff"}" rx="4" opacity="${opacity}"/><rect x="${x + 4}" y="${y + 4}" width="${w - 8}" height="${h - 8}" fill="none" stroke="${e.color ?? "#000000"}" stroke-width="2" opacity="${opacity}"/><text x="${x + Math.round(w / 2)}" y="${y + Math.round(h / 2)}" font-family="sans-serif" font-size="8" fill="${e.color ?? "#000"}" text-anchor="middle" dominant-baseline="middle" opacity="${opacity}">QR</text>`);
+    }
+  }
+
+  const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${tw}" height="${th}" viewBox="0 0 ${tw} ${th}"><rect width="${tw}" height="${th}" fill="${bg}"/>${parts.join("")}</svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgStr)}`;
+}
+
+/** Parse all available design view thumbnails from an order item. */
+function parseDesignViews(item: { designThumbnailUrl: string | null; designData: string | null }): DesignView[] {
+  const views: DesignView[] = [];
+  const seen = new Set<string>();
+  const add = (label: string, url: string) => {
+    if (url && !seen.has(url)) { seen.add(url); views.push({ label, url }); }
+  };
+
+  // 1. Stored thumbnail from SavedDesign
+  if (item.designThumbnailUrl) add("Preview", item.designThumbnailUrl);
+
+  if (!item.designData) return views;
+
+  let data: Record<string, unknown>;
+  try { data = JSON.parse(item.designData) as Record<string, unknown>; }
+  catch { return views; }
+
+  // 2. Embedded thumbnail snapshot (stored inside designData at order time)
+  if (typeof data._thumbnailUrl === "string" && data._thumbnailUrl) {
+    add("Preview", data._thumbnailUrl);
+  }
+
+  // 3. Version 3 format — generate SVG thumbnails from element data for each view
+  if (data.version === "3" && data.views && typeof data.views === "object" && !Array.isArray(data.views)) {
+    for (const [key, view] of Object.entries(data.views as Record<string, unknown>)) {
+      if (view && typeof view === "object") {
+        const svg = generateViewThumbnail(view as Record<string, unknown>);
+        if (svg) add(capitalize(key) + " View", svg);
+      }
+    }
+  }
+
+  // 4. Legacy formats (imageUrl / url fields, arrays, top-level keys)
+  if (data.version !== "3" && data.views && typeof data.views === "object" && !Array.isArray(data.views)) {
+    for (const [key, view] of Object.entries(data.views as Record<string, unknown>)) {
+      if (view && typeof view === "object") {
+        const v = view as Record<string, unknown>;
+        const url = typeof v.imageUrl === "string" ? v.imageUrl : typeof v.url === "string" ? v.url : null;
+        if (url) add(capitalize(key) + " View", url);
+      } else if (typeof view === "string" && (view.startsWith("data:") || view.startsWith("http"))) {
+        add(capitalize(key) + " View", view);
+      }
+    }
+  }
+  if (Array.isArray(data.views)) {
+    for (const view of data.views as Record<string, unknown>[]) {
+      const url = typeof view.url === "string" ? view.url : typeof view.imageUrl === "string" ? view.imageUrl : null;
+      const label = typeof view.label === "string" ? view.label : typeof view.name === "string" ? view.name : "View";
+      if (url) add(label, url);
+    }
+  }
+  for (const key of ["front", "back", "left", "right", "side", "top", "bottom"]) {
+    const val = data[key];
+    if (typeof val === "string" && (val.startsWith("data:") || val.startsWith("http"))) add(capitalize(key), val);
+  }
+
+  return views;
+}
+
+function downloadView(url: string, filename: string) {
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${filename}.png`;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// ─── DesignPreviewSection ────────────────────────────────────────────────────
+// Renders the custom design preview for an order item.
+// Uses plain <img> (not NextImage) because Next.js Image can silently reject
+// data: scheme URLs. Auto-fetches from /api/admin/designs/:id when local
+// design data alone doesn't yield any preview thumbnails.
+
+function DesignPreviewSection({ item }: { item: OrderItem }) {
+  const [views, setViews] = useState<DesignView[]>(() => parseDesignViews(item));
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "done" | "error">(
+    () => (parseDesignViews(item).length > 0 ? "done" : item.savedDesignId ? "idle" : "done")
+  );
+  const [previewModal, setPreviewModal] = useState<{ url: string; label: string } | null>(null);
+
+  // Auto-fetch design from server when local data produced no views
+  useEffect(() => {
+    if (loadState !== "idle" || !item.savedDesignId) return;
+    let cancelled = false;
+    setLoadState("loading");
+    (async () => {
+      try {
+        const res = await fetch(`/api/admin/designs/${item.savedDesignId}`);
+        const json = await res.json() as { data?: { thumbnailUrl: string | null; designData: string } };
+        if (cancelled) return;
+        if (!res.ok || !json.data) { setLoadState("error"); return; }
+
+        const freshViews = parseDesignViews({
+          designThumbnailUrl: json.data.thumbnailUrl,
+          designData: json.data.designData,
+        });
+
+        if (freshViews.length > 0) {
+          setViews(freshViews);
+          setLoadState("done");
+        } else {
+          setLoadState("error");
+        }
+      } catch {
+        if (!cancelled) setLoadState("error");
+      }
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Item has no design at all
+  if (!item.savedDesignId && views.length === 0) return null;
+
+  if (loadState === "loading") {
+    return (
+      <div className="border-t bg-muted/20 p-3 flex items-center gap-2 text-xs text-muted-foreground">
+        <ImageIcon className="size-3.5 animate-pulse" />
+        Loading design preview…
+      </div>
+    );
+  }
+
+  if (loadState === "error" || (loadState === "done" && views.length === 0)) {
+    return (
+      <div className="border-t bg-amber-50/50 p-3 flex items-center gap-2 text-xs text-amber-700">
+        <ImageIcon className="size-3.5 shrink-0" />
+        Design preview could not be generated.
+        {item.savedDesignId && (
+          <span className="text-muted-foreground ml-1 font-mono">{item.savedDesignId.slice(0, 12)}…</span>
+        )}
+      </div>
+    );
+  }
+
+  if (views.length === 0) return null;
+
+  return (
+    <>
+      <div className="border-t bg-gradient-to-b from-muted/40 to-muted/20 p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <ImageIcon className="size-3.5 text-primary" />
+          <p className="text-xs font-semibold text-primary">
+            Custom Design — {views.length} view{views.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+        <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(views.length, 4)}, 1fr)` }}>
+          {views.map((view, vi) => (
+            <div key={vi} className="flex flex-col items-center gap-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{view.label}</p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={view.url}
+                alt={`${view.label} — ${item.productName}`}
+                onClick={() => setPreviewModal({ url: view.url, label: view.label })}
+                className="w-full aspect-square rounded-lg border-2 border-border bg-white object-contain p-2 cursor-pointer hover:border-primary transition-colors"
+              />
+              <button
+                onClick={() => downloadView(view.url, `${item.productSku}-${view.label.toLowerCase().replace(/\s+/g, "-")}`)}
+                className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 hover:underline transition-colors"
+              >
+                <Download className="size-3" /> Download
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Full-size preview modal */}
+      <Dialog open={!!previewModal} onOpenChange={() => setPreviewModal(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{previewModal?.label}</DialogTitle>
+            <DialogDescription>{item.productName}</DialogDescription>
+          </DialogHeader>
+          {previewModal && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={previewModal.url}
+              alt={previewModal.label}
+              className="w-full rounded-lg border bg-white object-contain"
+            />
+          )}
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={() => previewModal && downloadView(previewModal.url, `${item.productSku}-${previewModal.label.toLowerCase().replace(/\s+/g, "-")}`)}
+              className="flex items-center gap-1.5 text-sm text-primary font-medium hover:underline"
+            >
+              <Download className="size-4" /> Download
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// ─── OrderDetailView ────────────────────────────────────────────────────────
 
 function OrderDetailView({ order, canUpdate, onQuickAction, isUpdating }: { order: OrderDto; canUpdate: boolean; onQuickAction: (u: Record<string, unknown>) => void; isUpdating: boolean }) {
   const timeline = [
@@ -367,63 +683,261 @@ function OrderDetailView({ order, canUpdate, onQuickAction, isUpdating }: { orde
         </div>
       )}
 
-      {/* Customer & Payment */}
+      {/* Customer, Shipping Address & Payment */}
       <div className="grid gap-4 sm:grid-cols-2">
+        {/* Customer Details */}
         <div className="space-y-3 rounded-lg border p-4">
-          <h4 className="flex items-center gap-2 text-sm font-medium"><MapPin className="size-4" /> Customer</h4>
+          <h4 className="flex items-center gap-2 text-sm font-semibold"><User className="size-4" /> Customer</h4>
           <div className="space-y-1 text-sm">
-            <p className="font-medium">{order.customerName}</p>
+            <p className="font-semibold">{order.customerName}</p>
             <p className="text-muted-foreground">{order.customerEmail}</p>
             {order.customerPhone && <p className="text-muted-foreground">{order.customerPhone}</p>}
+            {order.userId && (
+              <p className="text-[10px] text-muted-foreground/60 font-mono mt-1 break-all">User ID: {order.userId}</p>
+            )}
           </div>
+          {/* Shipping Address */}
+          {order.shippingAddress ? (
+            <div className="border-t pt-3 space-y-0.5 text-sm">
+              <p className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1"><MapPin className="size-3" /> Shipping Address</p>
+              <p className="font-medium">{order.shippingAddress.firstName} {order.shippingAddress.lastName}</p>
+              {order.shippingAddress.company && <p className="text-muted-foreground">{order.shippingAddress.company}</p>}
+              <p className="text-muted-foreground">{order.shippingAddress.addressLine1}</p>
+              {order.shippingAddress.addressLine2 && <p className="text-muted-foreground">{order.shippingAddress.addressLine2}</p>}
+              <p className="text-muted-foreground">{order.shippingAddress.city}, {order.shippingAddress.state}</p>
+              <p className="text-muted-foreground">{order.shippingAddress.country}</p>
+              {order.shippingAddress.phone && <p className="text-muted-foreground">{order.shippingAddress.phone}</p>}
+            </div>
+          ) : (
+            <div className="border-t pt-3">
+              <p className="text-xs text-muted-foreground italic">No shipping address recorded</p>
+            </div>
+          )}
         </div>
+
+        {/* Payment & Shipping */}
         <div className="space-y-3 rounded-lg border p-4">
           <h4 className="flex items-center gap-2 text-sm font-medium"><CreditCard className="size-4" /> Payment & Shipping</h4>
           <div className="space-y-2">
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Badge variant="outline" className={STATUS_CONFIG[order.status]?.color}>{order.status}</Badge>
               <Badge variant="outline" className={PAYMENT_CONFIG[order.paymentStatus]?.color}>{order.paymentStatus.replace(/_/g, " ")}</Badge>
             </div>
-            {order.paymentMethod && <p className="text-sm text-muted-foreground">Method: {order.paymentMethod}</p>}
-            {order.paymentReference && <p className="text-sm text-muted-foreground">Ref: <span className="font-mono">{order.paymentReference}</span></p>}
-            {order.trackingNumber && <p className="text-sm">Tracking: <span className="font-mono font-medium">{order.trackingNumber}</span></p>}
+            {order.paymentMethod && <p className="text-sm text-muted-foreground">Method: <span className="font-medium text-foreground">{order.paymentMethod}</span></p>}
+            {order.paymentReference && (
+              <p className="text-sm text-muted-foreground">
+                Ref: <span className="font-mono text-xs bg-muted px-1 py-0.5 rounded">{order.paymentReference}</span>
+              </p>
+            )}
+            {order.trackingNumber && (
+              <p className="text-sm">
+                Tracking: <span className="font-mono font-medium">{order.trackingNumber}</span>
+              </p>
+            )}
             {order.shippingMethod && <p className="text-sm text-muted-foreground">Via {order.shippingMethod}</p>}
           </div>
+          {/* Promo Code */}
+          {order.promoCode && (
+            <div className="border-t pt-3">
+              <div className="flex items-center gap-2">
+                <Tag className="size-3.5 text-primary" />
+                <span className="text-xs font-medium text-muted-foreground">Promo Applied</span>
+              </div>
+              <div className="mt-1 flex items-center gap-2">
+                <span className="font-mono font-semibold text-sm">{order.promoCode.code}</span>
+                <Badge variant="outline" className="text-primary border-primary/30 text-xs">
+                  {order.promoCode.discountType === "PERCENTAGE"
+                    ? `${order.promoCode.discountValue}% off`
+                    : `₦${Number(order.promoCode.discountValue).toLocaleString()} off`}
+                </Badge>
+              </div>
+              {order.promoCode.description && (
+                <p className="text-xs text-muted-foreground mt-0.5">{order.promoCode.description}</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Items */}
+      {/* Order Items */}
       <div>
-        <h4 className="mb-2 text-sm font-medium">Order Items</h4>
-        <Card><CardContent className="p-0">
-          <Table>
-            <TableHeader><TableRow>
-              <TableHead>Product</TableHead><TableHead>SKU</TableHead><TableHead className="text-right">Qty</TableHead><TableHead className="text-right">Price</TableHead><TableHead className="text-right">Total</TableHead>
-            </TableRow></TableHeader>
-            <TableBody>
-              {order.items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell><p className="font-medium">{item.productName}</p>{item.customPrint && <p className="text-xs text-blue-600">Custom Print: {item.printText}</p>}</TableCell>
-                  <TableCell className="font-mono text-xs">{item.productSku}</TableCell>
-                  <TableCell className="text-right">{item.quantity}</TableCell>
-                  <TableCell className="text-right">₦{Number(item.unitPrice).toLocaleString()}</TableCell>
-                  <TableCell className="text-right font-medium">₦{Number(item.totalPrice).toLocaleString()}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent></Card>
+        <h4 className="mb-3 text-sm font-semibold flex items-center gap-2">
+          <Layers className="size-4" /> Order Items
+          <span className="font-normal text-muted-foreground">({order.items.length} item{order.items.length !== 1 ? "s" : ""})</span>
+        </h4>
+        <div className="space-y-4">
+          {order.items.map((item, idx) => {
+            return (
+              <div key={item.id} className="rounded-xl border overflow-hidden">
+                {/* Item Header */}
+                <div className="flex items-start gap-3 p-4 bg-card">
+                  <span className="shrink-0 flex size-6 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">{idx + 1}</span>
+                  {/* Product Image */}
+                  <div className="shrink-0 size-16 rounded-lg overflow-hidden bg-muted border flex items-center justify-center">
+                    {item.productImage ? (
+                      <NextImage
+                        src={item.productImage}
+                        alt={item.productName}
+                        width={64}
+                        height={64}
+                        className="object-cover size-full"
+                        unoptimized={item.productImage.startsWith("data:")}
+                      />
+                    ) : (
+                      <ImageIcon className="size-6 text-muted-foreground/40" />
+                    )}
+                  </div>
+                  {/* Item Info */}
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <p className="font-semibold text-sm leading-tight">{item.productName}</p>
+                    <p className="text-xs text-muted-foreground font-mono bg-muted inline-block px-1.5 py-0.5 rounded">{item.productSku}</p>
+                    <div className="flex flex-wrap items-center gap-3 pt-1">
+                      <span className="text-xs text-muted-foreground">Qty: <span className="font-medium text-foreground">{item.quantity}</span></span>
+                      <span className="text-xs text-muted-foreground">Unit: <span className="font-medium text-foreground">₦{Number(item.unitPrice).toLocaleString()}</span></span>
+                      <span className="ml-auto text-sm font-bold">₦{Number(item.totalPrice).toLocaleString()}</span>
+                    </div>
+                    {item.customPrint && item.printText && (
+                      <p className="text-xs text-blue-600 bg-blue-50 rounded px-2 py-1 mt-1">
+                        Custom Print Text: <span className="font-medium">{item.printText}</span>
+                      </p>
+                    )}
+                    {item.savedDesignId && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Design ID: <span className="font-mono">{item.savedDesignId}</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <DesignPreviewSection item={item} />
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Totals */}
-      <div className="flex justify-end">
-        <div className="w-72 space-y-1 rounded-lg border bg-muted/30 p-4 text-sm">
-          <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>₦{Number(order.subtotal).toLocaleString()}</span></div>
-          {Number(order.taxAmount) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Tax</span><span>₦{Number(order.taxAmount).toLocaleString()}</span></div>}
-          {Number(order.shippingAmount) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Shipping</span><span>₦{Number(order.shippingAmount).toLocaleString()}</span></div>}
-          {Number(order.discountAmount) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span className="text-green-600">-₦{Number(order.discountAmount).toLocaleString()}</span></div>}
-          <Separator />
-          <div className="flex justify-between text-base font-bold"><span>Total</span><span>₦{Number(order.totalAmount).toLocaleString()}</span></div>
+      {/* Price Breakdown */}
+      <div className="rounded-xl border overflow-hidden">
+        <div className="bg-muted/50 px-4 py-3 border-b flex items-center gap-2">
+          <CreditCard className="size-4 text-muted-foreground" />
+          <h4 className="text-sm font-semibold">Price Breakdown</h4>
+        </div>
+        <div className="divide-y">
+
+          {/* Per-item rows */}
+          <div className="p-4 space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Items</p>
+            {order.items.map((item) => {
+              const hasPrintCharge = item.customPrint && item.printSurcharge > 0;
+              return (
+                <div key={item.id} className="space-y-1">
+                  {/* Product line */}
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium truncate max-w-[55%]">{item.productName}</span>
+                    <span className="font-semibold">₦{Number(item.totalPrice).toLocaleString()}</span>
+                  </div>
+                  {/* Formula row */}
+                  <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground pl-2">
+                    <span>
+                      <span className="font-medium text-foreground">₦{Number(item.basePrice).toLocaleString()}</span>
+                      {" base × "}
+                      <span className="font-medium text-foreground">{item.quantity}</span>
+                      {" unit"}{item.quantity !== 1 ? "s" : ""}
+                      {" = ₦"}{Number(item.basePrice * item.quantity).toLocaleString()}
+                    </span>
+                    {hasPrintCharge && (
+                      <span className="text-blue-600">
+                        + <span className="font-medium">₦{Number(item.printSurcharge).toLocaleString()}</span>
+                        {" print × "}
+                        <span className="font-medium">{item.quantity}</span>
+                        {" = ₦"}{Number(item.printSurcharge * item.quantity).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  {/* Badges */}
+                  <div className="flex flex-wrap gap-1 pl-2">
+                    {item.customPrint && (
+                      <span className="inline-flex items-center gap-1 text-[10px] bg-blue-50 border border-blue-200 text-blue-700 rounded px-1.5 py-0.5">
+                        <ImageIcon className="size-2.5" /> Custom Print
+                      </span>
+                    )}
+                    {item.savedDesignId && (
+                      <span className="inline-flex items-center gap-1 text-[10px] bg-violet-50 border border-violet-200 text-violet-700 rounded px-1.5 py-0.5">
+                        <Layers className="size-2.5" /> Custom Design
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Order-level totals */}
+          <div className="p-4 space-y-2 text-sm">
+            <div className="flex justify-between text-muted-foreground">
+              <span>Items Subtotal ({order.items.reduce((s, i) => s + i.quantity, 0)} unit{order.items.reduce((s, i) => s + i.quantity, 0) !== 1 ? "s" : ""})</span>
+              <span>₦{Number(order.subtotal).toLocaleString()}</span>
+            </div>
+
+            {order.items.some((i) => i.customPrint && i.printSurcharge > 0) && (
+              <div className="flex justify-between text-blue-700">
+                <span className="flex items-center gap-1">
+                  <ImageIcon className="size-3" />
+                  Custom Print Charges
+                </span>
+                <span>
+                  ₦{Number(
+                    order.items.reduce((s, i) => s + (i.customPrint ? i.printSurcharge * i.quantity : 0), 0)
+                  ).toLocaleString()}
+                </span>
+              </div>
+            )}
+
+            <div className="flex justify-between text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Truck className="size-3" />
+                Shipping
+                {order.shippingMethod && (
+                  <span className="text-[10px] bg-muted border rounded px-1.5 py-0.5 ml-1">
+                    {order.shippingMethod === "express" ? "Express (1–3 days)" : order.shippingMethod === "standard" ? "Standard (5–7 days)" : order.shippingMethod}
+                  </span>
+                )}
+              </span>
+              <span className={Number(order.shippingAmount) === 0 ? "text-green-600 font-medium" : ""}>
+                {Number(order.shippingAmount) === 0 ? "Free" : `₦${Number(order.shippingAmount).toLocaleString()}`}
+              </span>
+            </div>
+
+            {Number(order.taxAmount) > 0 && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>VAT <span className="text-[10px] bg-muted border rounded px-1 py-0.5 ml-0.5">7.5%</span></span>
+                <span>₦{Number(order.taxAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+            )}
+
+            {Number(order.discountAmount) > 0 && (
+              <div className="flex justify-between text-green-700">
+                <span className="flex items-center gap-1">
+                  <Tag className="size-3" />
+                  Discount{order.promoCode ? ` — ${order.promoCode.code}` : ""}
+                  {order.promoCode && (
+                    <span className="text-[10px] bg-green-50 border border-green-200 rounded px-1.5 py-0.5 ml-1">
+                      {order.promoCode.discountType === "PERCENTAGE"
+                        ? `${order.promoCode.discountValue}% off`
+                        : `₦${Number(order.promoCode.discountValue).toLocaleString()} off`}
+                    </span>
+                  )}
+                </span>
+                <span className="font-medium">−₦{Number(order.discountAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Grand Total */}
+          <div className="px-4 py-3 bg-muted/30 flex justify-between items-center">
+            <span className="font-bold text-sm">Total Charged</span>
+            <span className="text-lg font-bold text-primary">₦{Number(order.totalAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          </div>
         </div>
       </div>
 
@@ -437,9 +951,10 @@ function OrderDetailView({ order, canUpdate, onQuickAction, isUpdating }: { orde
 
       {/* Timestamps */}
       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground border-t pt-4">
-        <p>Created: {new Date(order.createdAt).toLocaleString()}</p>
+        <p>Placed: {new Date(order.createdAt).toLocaleString()}</p>
         {order.shippedAt && <p>Shipped: {new Date(order.shippedAt).toLocaleString()}</p>}
         {order.deliveredAt && <p>Delivered: {new Date(order.deliveredAt).toLocaleString()}</p>}
+        <p className="ml-auto">Last updated: {new Date(order.updatedAt).toLocaleString()}</p>
       </div>
     </div>
   );

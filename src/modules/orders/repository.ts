@@ -15,6 +15,31 @@ const orderWithItems = {
             },
           },
         },
+        savedDesign: {
+          select: { thumbnailUrl: true, designData: true },
+        },
+      },
+    },
+    shippingAddress: {
+      select: {
+        firstName: true,
+        lastName: true,
+        company: true,
+        addressLine1: true,
+        addressLine2: true,
+        city: true,
+        state: true,
+        country: true,
+        phone: true,
+      },
+    },
+    promoCode: {
+      select: {
+        id: true,
+        code: true,
+        discountType: true,
+        discountValue: true,
+        description: true,
       },
     },
   },
@@ -34,8 +59,14 @@ function toOrderItemDto(
     quantity: item.quantity,
     customPrint: item.customPrint,
     printText: item.printText,
+    basePrice: item.basePrice.toNumber(),
+    printSurcharge: item.printSurcharge.toNumber(),
     unitPrice: item.unitPrice.toNumber(),
     totalPrice: item.totalPrice.toNumber(),
+    savedDesignId: item.savedDesignId,
+    // Use the order-time snapshot; fall back to the live design data so old orders still show previews
+    designData: item.designData ?? item.savedDesign?.designData ?? null,
+    designThumbnailUrl: item.savedDesign?.thumbnailUrl ?? null,
   };
 }
 
@@ -56,6 +87,19 @@ function toOrderDto(order: OrderWithItems): OrderDto {
     totalAmount: order.totalAmount.toNumber(),
     shippingAddressId: order.shippingAddressId,
     billingAddressId: order.billingAddressId,
+    shippingAddress: order.shippingAddress
+      ? {
+          firstName: order.shippingAddress.firstName,
+          lastName: order.shippingAddress.lastName,
+          company: order.shippingAddress.company,
+          addressLine1: order.shippingAddress.addressLine1,
+          addressLine2: order.shippingAddress.addressLine2,
+          city: order.shippingAddress.city,
+          state: order.shippingAddress.state,
+          country: order.shippingAddress.country,
+          phone: order.shippingAddress.phone,
+        }
+      : null,
     shippingMethod: order.shippingMethod,
     trackingNumber: order.trackingNumber,
     paymentMethod: order.paymentMethod,
@@ -63,6 +107,15 @@ function toOrderDto(order: OrderWithItems): OrderDto {
     bankAccountInfo: order.bankAccountInfo,
     customerNotes: order.customerNotes,
     adminNotes: order.adminNotes,
+    promoCode: order.promoCode
+      ? {
+          id: order.promoCode.id,
+          code: order.promoCode.code,
+          discountType: order.promoCode.discountType,
+          discountValue: order.promoCode.discountValue.toNumber(),
+          description: order.promoCode.description,
+        }
+      : null,
     items: order.items.map(toOrderItemDto),
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
@@ -152,16 +205,21 @@ export async function createOrder(data: {
   shippingMethod?: string;
   paymentMethod?: string;
   customerNotes?: string;
+  promoCodeId?: string;
   items: Array<{
     productId: string;
     quantity: number;
     customPrint: boolean;
     printText?: string;
+    basePrice: number;
+    printSurcharge: number;
     unitPrice: number;
     totalPrice: number;
     productName: string;
     productSku: string;
     productImage?: string;
+    savedDesignId?: string;
+    designData?: string;
   }>;
 }): Promise<OrderDto> {
   const order = await prisma.order.create({
@@ -181,17 +239,22 @@ export async function createOrder(data: {
       shippingMethod: data.shippingMethod,
       paymentMethod: data.paymentMethod,
       customerNotes: data.customerNotes,
+      promoCodeId: data.promoCodeId,
       items: {
         create: data.items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
           customPrint: item.customPrint,
           printText: item.printText,
+          basePrice: item.basePrice,
+          printSurcharge: item.printSurcharge,
           unitPrice: item.unitPrice,
           totalPrice: item.totalPrice,
           productName: item.productName,
           productSku: item.productSku,
           productImage: item.productImage,
+          savedDesignId: item.savedDesignId,
+          designData: item.designData,
         })),
       },
     },

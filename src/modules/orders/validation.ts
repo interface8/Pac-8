@@ -23,6 +23,8 @@ const orderItemSchema = z.object({
   quantity: z.number().int().min(1, "Quantity must be at least 1"),
   customPrint: z.boolean().optional().default(false),
   printText: z.string().max(500).optional(),
+  savedDesignId: z.string().optional(),
+  designThumbnail: z.string().optional(), // client-side SVG data URL snapshot
 });
 
 export const createOrderSchema = z.object({
@@ -35,6 +37,11 @@ export const createOrderSchema = z.object({
   shippingMethod: z.string().max(100).optional(),
   paymentMethod: z.string().max(100).optional(),
   customerNotes: z.string().max(1000).optional(),
+  // Client-calculated pricing (all in NGN, before DB validation)
+  taxAmount: z.number().min(0).optional(),
+  shippingAmount: z.number().min(0).optional(),
+  discountAmount: z.number().min(0).optional(),
+  promoCodeId: z.string().optional(),
   items: z.array(orderItemSchema).min(1, "At least one item is required"),
 });
 

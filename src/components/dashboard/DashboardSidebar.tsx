@@ -16,6 +16,7 @@ import {
   FolderTree,
   Home,
   Presentation,
+  Tag,
 } from "lucide-react";
 import { cn } from "@/components/ui/utils";
 
@@ -42,6 +43,7 @@ const navSections: NavSection[] = [
       { label: "Orders", href: "/dashboard/orders", permission: "orders.read", icon: ShoppingCart },
       { label: "Products", href: "/dashboard/products", permission: "products.read", icon: Package },
       { label: "Categories", href: "/dashboard/categories", permission: "categories.read", icon: FolderTree },
+      { label: "Promo Codes", href: "/dashboard/promo", permission: "orders.read", icon: Tag },
       { label: "Carousel", href: "/dashboard/carousel", permission: null, icon: Presentation },
     ],
   },

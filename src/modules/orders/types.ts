@@ -23,8 +23,33 @@ export interface OrderItemDto {
   quantity: number;
   customPrint: boolean;
   printText: string | null;
-  unitPrice: number;
-  totalPrice: number;
+  basePrice: number;       // Product base price (before print surcharge)
+  printSurcharge: number;  // Extra charge for custom print/design per unit
+  unitPrice: number;       // basePrice + printSurcharge
+  totalPrice: number;      // unitPrice × quantity
+  savedDesignId: string | null;
+  designData: string | null;
+  designThumbnailUrl: string | null;
+}
+
+export interface OrderShippingAddress {
+  firstName: string;
+  lastName: string;
+  company: string | null;
+  addressLine1: string;
+  addressLine2: string | null;
+  city: string;
+  state: string;
+  country: string;
+  phone: string | null;
+}
+
+export interface OrderPromoCode {
+  id: string;
+  code: string;
+  discountType: string;
+  discountValue: number;
+  description: string | null;
 }
 
 export interface OrderDto {
@@ -43,6 +68,7 @@ export interface OrderDto {
   totalAmount: number;
   shippingAddressId: string | null;
   billingAddressId: string | null;
+  shippingAddress: OrderShippingAddress | null;
   shippingMethod: string | null;
   trackingNumber: string | null;
   paymentMethod: string | null;
@@ -50,6 +76,7 @@ export interface OrderDto {
   bankAccountInfo: string | null;
   customerNotes: string | null;
   adminNotes: string | null;
+  promoCode: OrderPromoCode | null;
   items: OrderItemDto[];
   createdAt: Date;
   updatedAt: Date;
@@ -62,6 +89,8 @@ export interface CreateOrderItemInput {
   quantity: number;
   customPrint?: boolean;
   printText?: string;
+  savedDesignId?: string;
+  designThumbnail?: string; // client-side SVG data URL snapshot
 }
 
 export interface CreateOrderInput {
@@ -74,6 +103,10 @@ export interface CreateOrderInput {
   shippingMethod?: string;
   paymentMethod?: string;
   customerNotes?: string;
+  taxAmount?: number;
+  shippingAmount?: number;
+  discountAmount?: number;
+  promoCodeId?: string;
   items: CreateOrderItemInput[];
 }
 

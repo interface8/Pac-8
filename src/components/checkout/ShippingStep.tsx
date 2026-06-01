@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { MapPin, Building2, Truck, Check, ChevronRight } from "lucide-react";
+import { MapPin, Building2, Truck, Check, ChevronRight, AlertCircle } from "lucide-react";
 import type { ShippingAddress, SavedAddress, ShippingMethod } from "@/lib/constants/checkout";
 import { NIGERIAN_STATES, SHIPPING_RATES, EMPTY_ADDRESS } from "@/lib/constants/checkout";
 
@@ -27,6 +28,23 @@ interface ShippingStepProps {
   populateAddress: (addr: SavedAddress) => void;
 }
 
+function FieldError({ show, message }: { show: boolean; message: string }) {
+  if (!show) return null;
+  return (
+    <p className="flex items-center gap-1 text-xs text-red-500 mt-1">
+      <AlertCircle size={11} /> {message}
+    </p>
+  );
+}
+
+function inputClass(hasError: boolean) {
+  return `w-full h-10 px-3 bg-muted border rounded-lg text-sm focus:outline-none focus:ring-2 transition ${
+    hasError
+      ? "border-red-400 focus:ring-red-400"
+      : "border-border focus:ring-primary"
+  }`;
+}
+
 export default function ShippingStep({
   user,
   address,
@@ -48,6 +66,26 @@ export default function ShippingStep({
   onNext,
   populateAddress,
 }: ShippingStepProps) {
+  const [submitted, setSubmitted] = useState(false);
+
+  const showNewAddressForm = !user || useNewAddress || savedAddresses.length === 0;
+
+  // Validation predicates (only meaningful when showNewAddressForm is true)
+  const missingFirstName = showNewAddressForm && !address.firstName.trim();
+  const missingLastName = showNewAddressForm && !address.lastName.trim();
+  const missingAddress1 = showNewAddressForm && !address.addressLine1.trim();
+  const missingCity = showNewAddressForm && !address.city.trim();
+  const missingState = showNewAddressForm && !address.state;
+  const missingGuestName = !user && !guestName.trim();
+  const missingGuestEmail = !user && !guestEmail.trim();
+  const invalidGuestEmail = !user && !!guestEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail);
+
+  function handleContinue() {
+    setSubmitted(true);
+    if (!isShippingValid()) return;
+    onNext();
+  }
+
   return (
     <div className="space-y-6">
       {/* Guest info */}
@@ -68,9 +106,10 @@ export default function ShippingStep({
                 type="text"
                 value={guestName}
                 onChange={(e) => setGuestName(e.target.value)}
-                className="w-full h-10 px-3 bg-muted border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className={inputClass(submitted && missingGuestName)}
                 placeholder="John Doe"
               />
+              <FieldError show={submitted && missingGuestName} message="Full name is required" />
             </div>
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">Email *</label>
@@ -78,9 +117,11 @@ export default function ShippingStep({
                 type="email"
                 value={guestEmail}
                 onChange={(e) => setGuestEmail(e.target.value)}
-                className="w-full h-10 px-3 bg-muted border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className={inputClass(submitted && (missingGuestEmail || invalidGuestEmail))}
                 placeholder="john@example.com"
               />
+              <FieldError show={submitted && missingGuestEmail} message="Email address is required" />
+              <FieldError show={submitted && !missingGuestEmail && invalidGuestEmail} message="Please enter a valid email address" />
             </div>
           </div>
           <div>
@@ -158,7 +199,7 @@ export default function ShippingStep({
       )}
 
       {/* New Address Form */}
-      {(!user || useNewAddress || savedAddresses.length === 0) && (
+      {showNewAddressForm && (
         <div className="bg-card rounded-xl border border-border p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
@@ -186,8 +227,10 @@ export default function ShippingStep({
                 type="text"
                 value={address.firstName}
                 onChange={(e) => setAddress({ ...address, firstName: e.target.value })}
-                className="w-full h-10 px-3 bg-muted border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className={inputClass(submitted && missingFirstName)}
+                placeholder="John"
               />
+              <FieldError show={submitted && missingFirstName} message="First name is required" />
             </div>
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">Last Name *</label>
@@ -195,8 +238,10 @@ export default function ShippingStep({
                 type="text"
                 value={address.lastName}
                 onChange={(e) => setAddress({ ...address, lastName: e.target.value })}
-                className="w-full h-10 px-3 bg-muted border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className={inputClass(submitted && missingLastName)}
+                placeholder="Doe"
               />
+              <FieldError show={submitted && missingLastName} message="Last name is required" />
             </div>
           </div>
 
@@ -209,6 +254,7 @@ export default function ShippingStep({
                 value={address.company}
                 onChange={(e) => setAddress({ ...address, company: e.target.value })}
                 className="w-full h-10 pl-9 pr-3 bg-muted border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Acme Corp"
               />
             </div>
           </div>
@@ -219,10 +265,12 @@ export default function ShippingStep({
               type="text"
               value={address.addressLine1}
               onChange={(e) => setAddress({ ...address, addressLine1: e.target.value })}
-              className="w-full h-10 px-3 bg-muted border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Street address"
+              className={inputClass(submitted && missingAddress1)}
+              placeholder="Street address, P.O. box"
             />
+            <FieldError show={submitted && missingAddress1} message="Address is required" />
           </div>
+
           <div>
             <label className="text-sm font-medium text-foreground mb-1 block">Address Line 2 (Optional)</label>
             <input
@@ -241,15 +289,17 @@ export default function ShippingStep({
                 type="text"
                 value={address.city}
                 onChange={(e) => setAddress({ ...address, city: e.target.value })}
-                className="w-full h-10 px-3 bg-muted border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className={inputClass(submitted && missingCity)}
+                placeholder="Lagos"
               />
+              <FieldError show={submitted && missingCity} message="City is required" />
             </div>
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">State *</label>
               <select
                 value={address.state}
                 onChange={(e) => setAddress({ ...address, state: e.target.value })}
-                className="w-full h-10 px-3 bg-muted border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className={`w-full h-10 px-3 bg-muted rounded-lg text-sm focus:outline-none focus:ring-2 transition border ${submitted && missingState ? "border-red-400 focus:ring-red-400" : "border-border focus:ring-primary"}`}
               >
                 <option value="">Select state</option>
                 {NIGERIAN_STATES.map((s) => (
@@ -258,6 +308,7 @@ export default function ShippingStep({
                   </option>
                 ))}
               </select>
+              <FieldError show={submitted && missingState} message="State is required" />
             </div>
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">Phone</label>
@@ -302,9 +353,8 @@ export default function ShippingStep({
       </div>
 
       <button
-        onClick={onNext}
-        disabled={!isShippingValid()}
-        className="w-full h-12 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition disabled:opacity-50 flex items-center justify-center gap-2"
+        onClick={handleContinue}
+        className="w-full h-12 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition flex items-center justify-center gap-2"
       >
         Continue to Payment <ChevronRight size={16} />
       </button>

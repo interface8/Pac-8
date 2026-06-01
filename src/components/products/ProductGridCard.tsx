@@ -12,7 +12,7 @@ export default function ProductGridCard({ product }: { product: ApiProduct }) {
   const mainImage =
     product.images?.find((img) => img.isMain)?.url ??
     product.images?.[0]?.url ??
-    "/images/product-placeholder.png";
+    "/images/product-placeholder.svg";
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();

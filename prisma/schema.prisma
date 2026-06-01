@@ -134,9 +134,9 @@ model ProductImage {
 model ProductView {
   id           String   @id @default(cuid())
   productId    String
-  viewKey      String   // e.g. "front", "back", "left", "right", "top", "bottom"
-  name         String   // Display name e.g. "Front", "Back"
-  baseImageUrl String   // Static product image for this view — never modified by users
+  viewKey      String // e.g. "front", "back", "left", "right", "top", "bottom"
+  name         String // Display name e.g. "Front", "Back"
+  baseImageUrl String // Static product image for this view — never modified by users
   description  String?
   sortOrder    Int      @default(0)
   isDefault    Boolean  @default(false)
@@ -245,14 +245,16 @@ model RolePermission {
 }
 
 model OrderItem {
-  id          String  @id @default(cuid())
-  orderId     String
-  productId   String
-  quantity    Int
-  customPrint Boolean @default(false)
-  printText   String?
-  unitPrice   Decimal @db.Decimal(10, 2)
-  totalPrice  Decimal @db.Decimal(10, 2)
+  id             String  @id @default(cuid())
+  orderId        String
+  productId      String
+  quantity       Int
+  customPrint    Boolean @default(false)
+  printText      String?
+  basePrice      Decimal @default(0) @db.Decimal(10, 2) // Product price before print surcharge
+  printSurcharge Decimal @default(0) @db.Decimal(10, 2) // Additional charge for custom print/design
+  unitPrice      Decimal @db.Decimal(10, 2) // basePrice + printSurcharge
+  totalPrice     Decimal @db.Decimal(10, 2) // unitPrice * quantity
 
   // Product snapshot (in case product details change)
   productName  String

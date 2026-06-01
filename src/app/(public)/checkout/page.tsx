@@ -41,6 +41,7 @@ export default function CheckoutPage() {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [orderLoading, setOrderLoading] = useState(false);
 
+  const [mounted, setMounted] = useState(false);
   const [guestEmail, setGuestEmail] = useState("");
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
@@ -54,6 +55,10 @@ export default function CheckoutPage() {
   const customerEmail = user?.email || guestEmail;
   const customerName = user?.name || guestName;
   const customerPhone = guestPhone || "";
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -105,6 +110,10 @@ export default function CheckoutPage() {
       const json = await res.json();
       if (res.ok && json.data?.clientSecret) {
         setClientSecret(json.data.clientSecret);
+      } else if (res.status === 503) {
+        // Stripe not configured — auto-switch to bank transfer
+        setPaymentMethod("bank_transfer");
+        toast.info("Card payment is not available. Switched to Bank Transfer.");
       } else {
         toast.error(json.message || "Failed to initialize payment");
       }
@@ -160,11 +169,18 @@ export default function CheckoutPage() {
         shippingAddressId: shippingAddressId || undefined,
         shippingMethod,
         paymentMethod: paymentMethod === "stripe" ? "STRIPE" : "BANK_TRANSFER",
+        // Full pricing breakdown so admin sees the exact totals
+        taxAmount: Math.round(vat * 100) / 100,
+        shippingAmount: shipping,
+        discountAmount: Math.round(discount * 100) / 100,
+        promoCodeId: promo?.id || undefined,
         items: cartItems.map((item) => ({
           productId: item.id,
           quantity: item.quantity,
           customPrint: item.customPrint ?? false,
-          printText: item.designId,
+          printText: item.customPrint && !item.designId ? item.name : undefined,
+          savedDesignId: item.designId || undefined,
+          designThumbnail: item.designThumbnail || undefined,
         })),
       };
 
@@ -206,6 +222,8 @@ export default function CheckoutPage() {
       setOrderLoading(false);
     }
   };
+
+  if (!mounted) return null;
 
   if (cartItems.length === 0 && step === 0) {
     return (

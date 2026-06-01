@@ -105,7 +105,7 @@ export default function ProductDetailPage({
           if (!a.isMain && b.isMain) return 1;
           return a.sortOrder - b.sortOrder;
         })
-      : [{ id: "fallback", url: "/images/product-placeholder.png", altText: product.name, isMain: true, sortOrder: 0 }];
+      : [{ id: "fallback", url: "/images/product-placeholder.svg", altText: product.name, isMain: true, sortOrder: 0 }];
 
   const mainImage = images[0];
 

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { stripe, isStripeConfigured } from "@/lib/stripe";
 import { getCurrentUser } from "@/lib/auth";
 import { jsonResponse, errorResponse } from "@/lib/http";
 import { z } from "zod";
@@ -14,6 +14,13 @@ const createIntentSchema = z.object({
 
 // POST /api/payments/create-intent
 export async function POST(request: NextRequest) {
+  if (!isStripeConfigured || !stripe) {
+    return errorResponse(
+      "Card payment is currently unavailable. Please use bank transfer.",
+      503,
+    );
+  }
+
   try {
     const body = await request.json();
     const parsed = createIntentSchema.safeParse(body);
