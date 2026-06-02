@@ -375,7 +375,7 @@ interface DesignView {
 }
 
 /** Recreate an SVG thumbnail from raw ViewDesignState element data. */
-function generateViewThumbnail(view: Record<string, unknown>): string | null {
+function generateViewThumbnail(view: Record<string, unknown>): string {
   const tw = 300, th = 300;
   const cw = typeof view.canvasWidth === "number" ? view.canvasWidth : 600;
   const ch = typeof view.canvasHeight === "number" ? view.canvasHeight : 600;
@@ -383,8 +383,6 @@ function generateViewThumbnail(view: Record<string, unknown>): string | null {
   const scaleY = th / ch;
   const bg = typeof view.backgroundColor === "string" ? view.backgroundColor : "#ffffff";
   const elems = Array.isArray(view.elements) ? view.elements as Record<string, unknown>[] : [];
-
-  if (elems.length === 0) return null;
 
   const escXml = (s: string) =>
     s.replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;" }[c] ?? c));
@@ -463,7 +461,7 @@ function parseDesignViews(item: { designThumbnailUrl: string | null; designData:
     for (const [key, view] of Object.entries(data.views as Record<string, unknown>)) {
       if (view && typeof view === "object") {
         const svg = generateViewThumbnail(view as Record<string, unknown>);
-        if (svg) add(capitalize(key) + " View", svg);
+        add(capitalize(key) + " View", svg);
       }
     }
   }
@@ -506,132 +504,151 @@ function downloadView(url: string, filename: string) {
   document.body.removeChild(link);
 }
 
-// ─── DesignPreviewSection ────────────────────────────────────────────────────
-// Renders the custom design preview for an order item.
-// Uses plain <img> (not NextImage) because Next.js Image can silently reject
-// data: scheme URLs. Auto-fetches from /api/admin/designs/:id when local
-// design data alone doesn't yield any preview thumbnails.
+// ─── DesignPreviewModal ──────────────────────────────────────────────────────
+// Opens when the admin clicks "Preview Design" on an order item.
+// Fetches live design data from /api/admin/designs/:id and renders SVG
+// thumbnails generated from the version-3 element data (or falls back to any
+// stored thumbnail URL).  Uses plain <img> so data: URIs work correctly.
 
-function DesignPreviewSection({ item }: { item: OrderItem }) {
-  const [views, setViews] = useState<DesignView[]>(() => parseDesignViews(item));
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "done" | "error">(
-    () => (parseDesignViews(item).length > 0 ? "done" : item.savedDesignId ? "idle" : "done")
-  );
-  const [previewModal, setPreviewModal] = useState<{ url: string; label: string } | null>(null);
+function DesignPreviewModal({ item, onClose }: { item: OrderItem; onClose: () => void }) {
+  const [views, setViews] = useState<DesignView[]>([]);
+  const [status, setStatus] = useState<"loading" | "done" | "error">("loading");
+  const [fullView, setFullView] = useState<DesignView | null>(null);
 
-  // Auto-fetch design from server when local data produced no views
   useEffect(() => {
-    if (loadState !== "idle" || !item.savedDesignId) return;
     let cancelled = false;
-    setLoadState("loading");
+
+    // 1. Try parsing design data that already came with the order
+    const localViews = parseDesignViews(item);
+    if (localViews.length > 0) {
+      setViews(localViews);
+      setStatus("done");
+      return;
+    }
+
+    // 2. If we have a savedDesignId, fetch live design data from the server
+    if (!item.savedDesignId) {
+      setStatus("error");
+      return;
+    }
+
     (async () => {
       try {
         const res = await fetch(`/api/admin/designs/${item.savedDesignId}`);
-        const json = await res.json() as { data?: { thumbnailUrl: string | null; designData: string } };
+        const json = await res.json() as { data?: { thumbnailUrl: string | null; designData: string | null } };
         if (cancelled) return;
-        if (!res.ok || !json.data) { setLoadState("error"); return; }
+        if (!res.ok || !json.data) { setStatus("error"); return; }
 
         const freshViews = parseDesignViews({
           designThumbnailUrl: json.data.thumbnailUrl,
           designData: json.data.designData,
         });
 
-        if (freshViews.length > 0) {
+        if (!cancelled) {
           setViews(freshViews);
-          setLoadState("done");
-        } else {
-          setLoadState("error");
+          setStatus(freshViews.length > 0 ? "done" : "error");
         }
       } catch {
-        if (!cancelled) setLoadState("error");
+        if (!cancelled) setStatus("error");
       }
     })();
+
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Item has no design at all
-  if (!item.savedDesignId && views.length === 0) return null;
-
-  if (loadState === "loading") {
-    return (
-      <div className="border-t bg-muted/20 p-3 flex items-center gap-2 text-xs text-muted-foreground">
-        <ImageIcon className="size-3.5 animate-pulse" />
-        Loading design preview…
-      </div>
-    );
-  }
-
-  if (loadState === "error" || (loadState === "done" && views.length === 0)) {
-    return (
-      <div className="border-t bg-amber-50/50 p-3 flex items-center gap-2 text-xs text-amber-700">
-        <ImageIcon className="size-3.5 shrink-0" />
-        Design preview could not be generated.
-        {item.savedDesignId && (
-          <span className="text-muted-foreground ml-1 font-mono">{item.savedDesignId.slice(0, 12)}…</span>
-        )}
-      </div>
-    );
-  }
-
-  if (views.length === 0) return null;
+  }, [item.id]);
 
   return (
     <>
-      <div className="border-t bg-gradient-to-b from-muted/40 to-muted/20 p-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <ImageIcon className="size-3.5 text-primary" />
-          <p className="text-xs font-semibold text-primary">
-            Custom Design — {views.length} view{views.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(views.length, 4)}, 1fr)` }}>
-          {views.map((view, vi) => (
-            <div key={vi} className="flex flex-col items-center gap-1.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{view.label}</p>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={view.url}
-                alt={`${view.label} — ${item.productName}`}
-                onClick={() => setPreviewModal({ url: view.url, label: view.label })}
-                className="w-full aspect-square rounded-lg border-2 border-border bg-white object-contain p-2 cursor-pointer hover:border-primary transition-colors"
-              />
-              <button
-                onClick={() => downloadView(view.url, `${item.productSku}-${view.label.toLowerCase().replace(/\s+/g, "-")}`)}
-                className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 hover:underline transition-colors"
-              >
-                <Download className="size-3" /> Download
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Full-size preview modal */}
-      <Dialog open={!!previewModal} onOpenChange={() => setPreviewModal(null)}>
-        <DialogContent className="max-w-lg">
+      <Dialog open onOpenChange={() => onClose()}>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{previewModal?.label}</DialogTitle>
-            <DialogDescription>{item.productName}</DialogDescription>
+            <DialogTitle className="flex items-center gap-2">
+              <ImageIcon className="size-4 text-primary" />
+              Design Preview
+            </DialogTitle>
+            <DialogDescription>{item.productName} — {item.productSku}</DialogDescription>
           </DialogHeader>
-          {previewModal && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={previewModal.url}
-              alt={previewModal.label}
-              className="w-full rounded-lg border bg-white object-contain"
-            />
+
+          {status === "loading" && (
+            <div className="flex flex-col items-center justify-center gap-3 py-12 text-muted-foreground">
+              <ImageIcon className="size-8 animate-pulse" />
+              <p className="text-sm">Loading design…</p>
+            </div>
           )}
-          <div className="flex justify-end pt-2">
-            <button
-              onClick={() => previewModal && downloadView(previewModal.url, `${item.productSku}-${previewModal.label.toLowerCase().replace(/\s+/g, "-")}`)}
-              className="flex items-center gap-1.5 text-sm text-primary font-medium hover:underline"
-            >
-              <Download className="size-4" /> Download
-            </button>
-          </div>
+
+          {status === "error" && (
+            <div className="flex flex-col items-center justify-center gap-3 py-12 text-amber-700">
+              <ImageIcon className="size-8 shrink-0 text-amber-500" />
+              <p className="text-sm font-medium">Could not load design preview</p>
+              <p className="text-xs text-muted-foreground text-center max-w-xs">
+                The design data may not have been captured at order time, or the design has been deleted.
+              </p>
+              {item.savedDesignId && (
+                <p className="text-xs font-mono text-muted-foreground">ID: {item.savedDesignId}</p>
+              )}
+            </div>
+          )}
+
+          {status === "done" && views.length > 0 && (
+            <div className="space-y-4">
+              <div
+                className="grid gap-4"
+                style={{ gridTemplateColumns: `repeat(${Math.min(views.length, 3)}, 1fr)` }}
+              >
+                {views.map((view, vi) => (
+                  <div key={vi} className="flex flex-col items-center gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {view.label}
+                    </p>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={view.url}
+                      alt={view.label}
+                      onClick={() => setFullView(view)}
+                      className="w-full aspect-square rounded-xl border-2 border-border bg-white object-contain p-3 cursor-pointer hover:border-primary hover:shadow-md transition-all"
+                    />
+                    <button
+                      onClick={() => downloadView(view.url, `${item.productSku}-${view.label.toLowerCase().replace(/\s+/g, "-")}`)}
+                      className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                    >
+                      <Download className="size-3" /> Download
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <p className="text-center text-[11px] text-muted-foreground">
+                Click a view to enlarge · {views.length} view{views.length !== 1 ? "s" : ""}
+              </p>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
+
+      {/* Full-size image overlay */}
+      {fullView && (
+        <Dialog open onOpenChange={() => setFullView(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{fullView.label}</DialogTitle>
+              <DialogDescription>{item.productName}</DialogDescription>
+            </DialogHeader>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={fullView.url}
+              alt={fullView.label}
+              className="w-full rounded-xl border bg-white object-contain"
+            />
+            <div className="flex justify-end pt-1">
+              <button
+                onClick={() => downloadView(fullView.url, `${item.productSku}-${fullView.label.toLowerCase().replace(/\s+/g, "-")}`)}
+                className="flex items-center gap-1.5 text-sm text-primary font-medium hover:underline"
+              >
+                <Download className="size-4" /> Download
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
@@ -639,6 +656,7 @@ function DesignPreviewSection({ item }: { item: OrderItem }) {
 // ─── OrderDetailView ────────────────────────────────────────────────────────
 
 function OrderDetailView({ order, canUpdate, onQuickAction, isUpdating }: { order: OrderDto; canUpdate: boolean; onQuickAction: (u: Record<string, unknown>) => void; isUpdating: boolean }) {
+  const [previewingDesign, setPreviewingDesign] = useState<OrderItem | null>(null);
   const timeline = [
     { label: "Placed", active: true },
     { label: "Confirmed", active: ORDER_STATUSES.indexOf(order.status) >= 1 },
@@ -802,19 +820,30 @@ function OrderDetailView({ order, canUpdate, onQuickAction, isUpdating }: { orde
                       </p>
                     )}
                     {item.savedDesignId && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Design ID: <span className="font-mono">{item.savedDesignId}</span>
-                      </p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="inline-flex items-center gap-1 text-[10px] bg-violet-50 border border-violet-200 text-violet-700 rounded px-1.5 py-0.5">
+                          <Layers className="size-2.5" /> Custom Design
+                        </span>
+                        <button
+                          onClick={() => setPreviewingDesign(item)}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded px-2 py-0.5 transition-colors"
+                        >
+                          <Eye className="size-3" /> Preview Design
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
-
-                <DesignPreviewSection item={item} />
               </div>
             );
           })}
         </div>
       </div>
+
+      {/* Design Preview Modal */}
+      {previewingDesign && (
+        <DesignPreviewModal item={previewingDesign} onClose={() => setPreviewingDesign(null)} />
+      )}
 
       {/* Price Breakdown */}
       <div className="rounded-xl border overflow-hidden">

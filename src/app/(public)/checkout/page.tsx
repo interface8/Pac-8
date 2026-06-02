@@ -54,7 +54,7 @@ export default function CheckoutPage() {
 
   const customerEmail = user?.email || guestEmail;
   const customerName = user?.name || guestName;
-  const customerPhone = guestPhone || "";
+  const customerPhone = guestPhone || address.phone || "";
 
   useEffect(() => {
     setMounted(true);
@@ -122,6 +122,23 @@ export default function CheckoutPage() {
     }
   };
 
+  const startA1PayCheckout = async (orderId: string, orderNumber: string) => {
+    const res = await fetch("/api/payments/a1pay/initiate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId, callbackPath: `/orders/${orderNumber}/confirmation` }),
+    });
+
+    const json = await res.json();
+    const checkoutUrl = json?.data?.checkoutUrl as string | undefined;
+
+    if (!res.ok || !checkoutUrl) {
+      throw new Error(json?.message || "Unable to start A1 Pay checkout");
+    }
+
+    window.location.href = checkoutUrl;
+  };
+
   const handleNextStep = async () => {
     if (step === 0) {
       if (!isShippingValid()) {
@@ -168,7 +185,12 @@ export default function CheckoutPage() {
         customerPhone: customerPhone || undefined,
         shippingAddressId: shippingAddressId || undefined,
         shippingMethod,
-        paymentMethod: paymentMethod === "stripe" ? "STRIPE" : "BANK_TRANSFER",
+        paymentMethod:
+          paymentMethod === "stripe"
+            ? "STRIPE"
+            : paymentMethod === "a1pay"
+              ? "A1PAY"
+              : "BANK_TRANSFER",
         // Full pricing breakdown so admin sees the exact totals
         taxAmount: Math.round(vat * 100) / 100,
         shippingAmount: shipping,
@@ -201,6 +223,11 @@ export default function CheckoutPage() {
       const orderId = order.id;
       const orderNumber = order.orderNumber;
 
+      if (paymentMethod === "a1pay" && orderId) {
+        await startA1PayCheckout(orderId, orderNumber);
+        return;
+      }
+
       if (paymentIntentId && orderId) {
         await fetch("/api/payments/create-intent", {
           method: "POST",
@@ -217,8 +244,9 @@ export default function CheckoutPage() {
 
       dispatch(clearCart());
       router.push(`/orders/${orderNumber}/confirmation`);
-    } catch {
-      toast.error("Something went wrong. Please try again.");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Something went wrong. Please try again.";
+      toast.error(message);
       setOrderLoading(false);
     }
   };

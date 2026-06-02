@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import {
   CheckCircle2,
   Package,
@@ -47,23 +47,59 @@ interface Order {
 
 export default function OrderConfirmationPage() {
   const { orderNumber } = useParams<{ orderNumber: string }>();
+  const searchParams = useSearchParams();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [a1VerificationStatus, setA1VerificationStatus] = useState<"PAID" | "FAILED" | "PENDING" | null>(null);
 
   useEffect(() => {
     if (!orderNumber) return;
 
-    fetch(`/api/orders/${orderNumber}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Order not found");
-        return res.json();
-      })
-      .then((json) => setOrder(json.data || json))
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [orderNumber]);
+    const ref = searchParams.get("Ref") ?? searchParams.get("ref");
+    const merchantRef =
+      searchParams.get("MerchantRef") ??
+      searchParams.get("merchantRef") ??
+      searchParams.get("merchantref");
+    const response = searchParams.get("Response") ?? searchParams.get("response");
+
+    const run = async () => {
+      try {
+        const orderRes = await fetch(`/api/orders/${orderNumber}`);
+        if (!orderRes.ok) throw new Error("Order not found");
+        const orderJson = await orderRes.json();
+        const loadedOrder = orderJson.data || orderJson;
+        setOrder(loadedOrder);
+
+        if (loadedOrder.paymentMethod === "A1PAY") {
+          const params = new URLSearchParams({ orderNumber });
+          if (ref) params.set("ref", ref);
+          if (merchantRef) params.set("merchantRef", merchantRef);
+          if (response) params.set("response", response);
+
+          const verifyRes = await fetch(`/api/payments/a1pay/verify-return?${params.toString()}`);
+          if (verifyRes.ok) {
+            const verifyJson = await verifyRes.json();
+            setA1VerificationStatus(verifyJson?.data?.status ?? null);
+          }
+
+          // Refresh order after verification because the API may have updated DB status.
+          const refreshedOrderRes = await fetch(`/api/orders/${orderNumber}`);
+          if (refreshedOrderRes.ok) {
+            const refreshedOrderJson = await refreshedOrderRes.json();
+            setOrder(refreshedOrderJson.data || refreshedOrderJson);
+          }
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Something went wrong");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    run();
+  }, [orderNumber, searchParams]);
 
   const copyOrderNumber = () => {
     if (!order) return;
@@ -96,7 +132,9 @@ export default function OrderConfirmationPage() {
   }
 
   const isBankTransfer = order.paymentMethod === "BANK_TRANSFER";
-  const isPaid = order.paymentStatus === "PAID";
+  const verifiedPaymentStatus = a1VerificationStatus ?? (order.paymentStatus as "PAID" | "FAILED" | "PENDING");
+  const isPaid = verifiedPaymentStatus === "PAID";
+  const isFailed = verifiedPaymentStatus === "FAILED";
 
   return (
     <div className="pt-32 md:pt-28 pb-16 px-4 sm:px-6">
@@ -107,11 +145,19 @@ export default function OrderConfirmationPage() {
             <CheckCircle2 size={40} className="text-green-600" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
-            {isBankTransfer ? "Order Placed!" : isPaid ? "Payment Successful!" : "Order Confirmed!"}
+            {isBankTransfer
+              ? "Order Placed!"
+              : isPaid
+                ? "Payment Successful!"
+                : isFailed
+                  ? "Payment Failed"
+                  : "Order Confirmed!"}
           </h1>
           <p className="text-muted-foreground">
             {isBankTransfer
               ? "Your order has been placed. Complete the bank transfer to confirm."
+              : isFailed
+                ? "Your payment was not completed. You can retry payment from your orders page."
               : `Thank you, ${order.customerName}! Your order is being processed.`}
           </p>
         </div>
@@ -169,7 +215,18 @@ export default function OrderConfirmationPage() {
           <div className="space-y-4">
             {[
               { icon: CheckCircle2, label: "Order Placed", description: new Date(order.createdAt).toLocaleDateString("en-NG", { weekday: "long", year: "numeric", month: "long", day: "numeric" }), active: true },
-              { icon: CreditCard, label: "Payment", description: isPaid ? "Payment confirmed" : isBankTransfer ? "Awaiting bank transfer" : "Processing", active: isPaid },
+              {
+                icon: CreditCard,
+                label: "Payment",
+                description: isPaid
+                  ? "Payment confirmed"
+                  : isFailed
+                    ? "Payment failed"
+                    : isBankTransfer
+                      ? "Awaiting bank transfer"
+                      : "Awaiting payment confirmation",
+                active: isPaid,
+              },
               { icon: Package, label: "Processing", description: "Your order is being prepared", active: order.status === "PROCESSING" || order.status === "SHIPPED" || order.status === "DELIVERED" },
               { icon: Truck, label: "Shipped", description: order.shippingMethod === "express" ? "Express delivery (1-3 days)" : "Standard delivery (5-7 days)", active: order.status === "SHIPPED" || order.status === "DELIVERED" },
               { icon: MapPin, label: "Delivered", description: "Package delivered", active: order.status === "DELIVERED" },

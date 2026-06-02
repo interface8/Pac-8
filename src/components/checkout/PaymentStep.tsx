@@ -57,6 +57,23 @@ export default function PaymentStep({
           </button>
 
           <button
+            onClick={() => setPaymentMethod("a1pay")}
+            className={`w-full text-left p-4 rounded-xl border-2 transition ${
+              paymentMethod === "a1pay"
+                ? "border-primary bg-primary/5"
+                : "border-border hover:border-muted-foreground"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <CreditCard size={20} className="text-primary" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">A1 Pay</p>
+                <p className="text-xs text-muted-foreground">Pay securely via A1 Pay checkout</p>
+              </div>
+            </div>
+          </button>
+
+          <button
             onClick={() => setPaymentMethod("bank_transfer")}
             className={`w-full text-left p-4 rounded-xl border-2 transition ${
               paymentMethod === "bank_transfer"
@@ -125,6 +142,15 @@ export default function PaymentStep({
         </div>
       )}
 
+      {paymentMethod === "a1pay" && (
+        <div className="bg-card rounded-xl border border-border p-5 space-y-3">
+          <h3 className="text-sm font-semibold text-foreground">A1 Pay Checkout</h3>
+          <p className="text-sm text-muted-foreground">
+            You will be redirected to A1 Pay to complete payment after placing your order.
+          </p>
+        </div>
+      )}
+
       <div className="flex gap-3">
         <button
           onClick={onBack}
@@ -132,7 +158,7 @@ export default function PaymentStep({
         >
           <ChevronLeft size={16} /> Back
         </button>
-        {paymentMethod === "bank_transfer" && (
+        {(paymentMethod === "bank_transfer" || paymentMethod === "a1pay") && (
           <button
             onClick={onContinue}
             className="flex-1 h-12 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition flex items-center justify-center gap-2"

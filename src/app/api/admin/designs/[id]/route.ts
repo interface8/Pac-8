@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireApiPermission, isErrorResponse } from "@/lib/auth";
+import { requireApiAuth, isErrorResponse } from "@/lib/auth";
 import { jsonResponse, errorResponse } from "@/lib/http";
 
 // GET /api/admin/designs/:id — fetch any saved design (admin only)
@@ -8,7 +8,7 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await requireApiPermission("orders.read");
+  const guard = await requireApiAuth();
   if (isErrorResponse(guard)) return guard;
 
   try {

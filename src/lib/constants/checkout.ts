@@ -27,7 +27,7 @@ export interface SavedAddress {
 }
 
 export type ShippingMethod = "standard" | "express";
-export type PaymentMethod = "stripe" | "bank_transfer";
+export type PaymentMethod = "stripe" | "a1pay" | "bank_transfer";
 
 // ─── Constants ──────────────────────────────────────────
 export const SHIPPING_RATES: Record<ShippingMethod, { label: string; price: number; days: string }> = {

@@ -84,7 +84,11 @@ export default function ReviewStep({
           </button>
         </div>
         <p className="text-sm text-muted-foreground mt-2">
-          {paymentMethod === "stripe" ? "Card Payment (Stripe)" : "Bank Transfer"}
+          {paymentMethod === "stripe"
+            ? "Card Payment (Stripe)"
+            : paymentMethod === "a1pay"
+              ? "A1 Pay"
+              : "Bank Transfer"}
         </p>
       </div>
 
