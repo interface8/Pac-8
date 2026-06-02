@@ -902,63 +902,64 @@ export default function CustomizeProductPage({
   );
 
   // â”€â”€ Load product views from API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Fetch both product views and any existing saved design in parallel,
+  // then set state ONCE. This prevents the race condition where the
+  // views-reset would overwrite a saved design that happened to load first.
+  const designIdParam = searchParams?.get("designId");
   useEffect(() => {
     if (!product) return;
     setViewsLoading(true);
-    fetch(`/api/products/${product.id}/views`)
-      .then((r) => r.json())
-      .then((json) => {
-        const views: ProductView[] = json.data ?? [];
+
+    const viewsPromise = fetch(`/api/products/${product.id}/views`).then((r) => r.json());
+    const designPromise = designIdParam
+      ? fetch(`/api/designs/${designIdParam}`).then((r) => r.json())
+      : Promise.resolve(null);
+
+    Promise.all([viewsPromise, designPromise])
+      .then(([viewJson, designJson]) => {
+        // Build base view map from product views
+        const views: ProductView[] = viewJson?.data ?? [];
         setProductViews(views);
+
+        const initial: Record<string, ViewDesignState> = {};
+        let activeKey = "default";
+
         if (views.length > 0) {
           const defaultView = views.find((v) => v.isDefault) ?? views[0];
-          setActiveViewKey(defaultView.viewKey);
-          const initial: Record<string, ViewDesignState> = {};
+          activeKey = defaultView.viewKey;
           views.forEach((v) => { initial[v.viewKey] = { ...DEFAULT_VIEW_DESIGN }; });
-          setViewDesigns(initial);
         } else {
-          setActiveViewKey("default");
-          setViewDesigns({ default: { ...DEFAULT_VIEW_DESIGN } });
+          initial.default = { ...DEFAULT_VIEW_DESIGN };
         }
+
+        // Merge saved design on top — no race condition possible
+        const d = designJson?.data;
+        if (d && d.productId === product.id) {
+          if (d.name) setDesignName(d.name);
+          setExistingDesignId(d.id);
+          if (d.designData) {
+            try {
+              const parsed = JSON.parse(d.designData) as Record<string, unknown>;
+              if (parsed.version === "3" && parsed.views && typeof parsed.views === "object") {
+                Object.entries(parsed.views as Record<string, ViewDesignState>).forEach(([key, viewState]) => {
+                  initial[key] = viewState;
+                });
+              }
+            } catch { /* malformed — start fresh */ }
+          }
+          toast.info("Design loaded — continue where you left off!", { autoClose: 3000 });
+        }
+
+        setActiveViewKey(activeKey);
+        setViewDesigns(initial);
       })
       .catch(() => {
         setActiveViewKey("default");
         setViewDesigns({ default: { ...DEFAULT_VIEW_DESIGN } });
       })
       .finally(() => setViewsLoading(false));
-  }, [product]);
-
-  // ── Load existing design from ?designId= URL param ──────────────
-  const designIdParam = searchParams?.get("designId");
-  useEffect(() => {
-    if (!designIdParam || !product) return;
-    fetch(`/api/designs/${designIdParam}`)
-      .then((r) => r.json())
-      .then((json) => {
-        const d = json?.data;
-        if (!d || d.productId !== product.id) return;
-        if (d.name) setDesignName(d.name);
-        setExistingDesignId(d.id);
-        if (d.designData) {
-          try {
-            const parsed = JSON.parse(d.designData);
-            // Support multi-view (version 3) format
-            if (parsed.version === "3" && parsed.views) {
-              setViewDesigns((prev) => {
-                const merged: Record<string, ViewDesignState> = { ...prev };
-                Object.keys(parsed.views).forEach((key) => {
-                  merged[key] = parsed.views[key];
-                });
-                return merged;
-              });
-            }
-          } catch { /* ignore malformed data */ }
-        }
-        toast.info("Design loaded — continue where you left off!", { autoClose: 3000 });
-      })
-      .catch(() => { /* silent — design may not exist for this user */ });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [designIdParam, product]);
+  }, [product, designIdParam]);
 
   // â”€â”€ Auto-save every 90 seconds â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
@@ -1310,6 +1311,12 @@ export default function CustomizeProductPage({
     if (!product) return;
     setAddingToCart(true);
     try {
+      // Auto-save the design if it hasn't been saved yet
+      let finalDesignId = existingDesignId;
+      if (!finalDesignId) {
+        finalDesignId = await saveDesign();
+      }
+
       // Generate thumbnail using shared helper
       const designThumbnail = generateThumbnail(viewDesigns, activeViewKey);
 
@@ -1326,7 +1333,7 @@ export default function CustomizeProductPage({
         designThumbnail,
         customPrint: product.allowCustomPrint ?? false,
         printPrice,
-        designId: existingDesignId ?? undefined,
+        designId: finalDesignId ?? undefined,
       });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to add to cart");

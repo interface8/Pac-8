@@ -114,40 +114,51 @@ async function postA1InitializeWithAuthFallback(
   const merchantId = getMerchantId();
   const publicKey = env.A1PAY_PUBLIC_KEY;
 
-  const headerVariants: Record<string, string>[] = [
+  const basicPublicSecret = Buffer.from(`${publicKey}:${secret}`).toString("base64");
+  const basicSecretPublic = Buffer.from(`${secret}:${publicKey}`).toString("base64");
+
+  const baseHeaders = {
+    "Content-Type": "application/json",
+    ...(merchantId ? { "x-merchant-id": merchantId } : {}),
+    ...(publicKey ? { "x-public-key": publicKey } : {}),
+  };
+
+  const headerVariants: Array<{ label: string; headers: Record<string, string> }> = [
+    { label: "bearer-secret", headers: { ...baseHeaders, Authorization: `Bearer ${secret}` } },
+    { label: "bearer-public", headers: { ...baseHeaders, Authorization: `Bearer ${publicKey}` } },
+    { label: "raw-secret", headers: { ...baseHeaders, Authorization: secret } },
+    { label: "x-api-key", headers: { ...baseHeaders, "x-api-key": secret } },
+    { label: "x-secret-key", headers: { ...baseHeaders, "x-secret-key": secret } },
     {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${secret}`,
-      ...(merchantId ? { "x-merchant-id": merchantId } : {}),
-      ...(publicKey ? { "x-public-key": publicKey } : {}),
+      label: "x-key-pair",
+      headers: { ...baseHeaders, "x-secret-key": secret, "x-public-key": publicKey },
     },
-    {
-      "Content-Type": "application/json",
-      Authorization: secret,
-      ...(merchantId ? { "x-merchant-id": merchantId } : {}),
-      ...(publicKey ? { "x-public-key": publicKey } : {}),
-    },
-    {
-      "Content-Type": "application/json",
-      "x-api-key": secret,
-      ...(merchantId ? { "x-merchant-id": merchantId } : {}),
-      ...(publicKey ? { "x-public-key": publicKey } : {}),
-    },
+    { label: "basic-public-secret", headers: { ...baseHeaders, Authorization: `Basic ${basicPublicSecret}` } },
+    { label: "basic-secret-public", headers: { ...baseHeaders, Authorization: `Basic ${basicSecretPublic}` } },
   ];
 
   let lastResponse: Response | null = null;
-  for (const headers of headerVariants) {
+  const trace: string[] = [];
+  for (const attempt of headerVariants) {
     const res = await fetch(url, {
       method: "POST",
-      headers,
+      headers: attempt.headers,
       body: JSON.stringify(payload),
     });
 
     lastResponse = res;
+    trace.push(`${attempt.label}:${res.status}`);
     // Return immediately on success or non-auth error so we preserve the real server message.
     if (res.ok || res.status !== 401) {
+      if (trace.length > 1) {
+        console.info("[A1 Pay] Initialize auth trace", trace.join(", "));
+      }
       return res;
     }
+  }
+
+  if (trace.length > 0) {
+    console.info("[A1 Pay] Initialize auth trace", trace.join(", "));
   }
 
   return lastResponse!;
