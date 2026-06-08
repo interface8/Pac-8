@@ -4,7 +4,8 @@ export interface UserDto {
   id: string;
   email: string;
   name: string;
-  phone: string,
+  phone: string;
+  image: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -21,9 +22,10 @@ export interface CreateUserInput {
 
 export interface UpdateUserInput {
   email?: string;
-  phone?: string,
+  phone?: string;
   password?: string;
   name?: string;
+  image?: string | null;
   isActive?: boolean;
   roleIds?: string[];
 }

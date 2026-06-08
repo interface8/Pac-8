@@ -27,6 +27,7 @@ interface UserWithRoles {
   email: string;
   phone: string | null;
   name: string | null;
+  image?: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -41,6 +42,7 @@ function toUserDto(user: UserWithRoles): UserDto {
     email: user.email,
     phone: user.phone ?? "",
     name: user.name ?? "",
+    image: user.image ?? null,
     isActive: user.isActive,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
@@ -139,6 +141,7 @@ export async function updateUser(
     email?: string;
     phone?: string;
     name?: string;
+    image?: string | null;
     isActive?: boolean;
     password?: string;
     roles?: { create: Array<{ roleId: string }> };
@@ -149,6 +152,7 @@ export async function updateUser(
   if (input.name) data.name = input.name;
   if (input.isActive !== undefined) data.isActive = input.isActive;
   if (input.password) data.password = await hash(input.password, 12);
+  if ('image' in input) data.image = input.image ?? null;
 
   // Handle role assignments
   if (input.roleIds) {

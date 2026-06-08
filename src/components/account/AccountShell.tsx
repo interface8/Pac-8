@@ -15,6 +15,7 @@ import { cn } from "@/components/ui/utils";
 
 const accountNav = [
   { label: "Overview", href: "/account", icon: User },
+  { label: "Profile", href: "/account/profile", icon: User },
   { label: "My Orders", href: "/account/orders", icon: ShoppingBag },
   { label: "My Designs", href: "/account/designs", icon: Palette },
   { label: "Addresses", href: "/account/addresses", icon: MapPin },
@@ -27,7 +28,10 @@ export function AccountSidebar() {
   return (
     <nav className="space-y-1">
       {accountNav.map((item) => {
-        const isActive = pathname === item.href;
+        const isActive =
+          item.href === "/account"
+            ? pathname === "/account"
+            : pathname.startsWith(item.href);
         const Icon = item.icon;
         return (
           <Link
@@ -99,7 +103,10 @@ function MobileAccountNav() {
   return (
     <>
       {accountNav.map((item) => {
-        const isActive = pathname === item.href;
+        const isActive =
+          item.href === "/account"
+            ? pathname === "/account"
+            : pathname.startsWith(item.href);
         const Icon = item.icon;
         return (
           <Link
