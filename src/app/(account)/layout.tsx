@@ -17,7 +17,7 @@ export default async function AccountLayout({
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header user={{ name: user.name, email: user.email, roles: user.roles }} />
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 pt-[88px]">{children}</main>
       <Footer />
     </div>
   );
