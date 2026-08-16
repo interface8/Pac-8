@@ -91,6 +91,7 @@ export interface CreateOrderItemInput {
   printText?: string;
   savedDesignId?: string;
   designThumbnail?: string; // client-side SVG data URL snapshot
+  designData?: string; // full design JSON snapshot when no savedDesignId exists (e.g. guest checkout)
 }
 
 export interface CreateOrderInput {

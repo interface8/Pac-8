@@ -25,6 +25,7 @@ const orderItemSchema = z.object({
   printText: z.string().max(500).optional(),
   savedDesignId: z.string().optional(),
   designThumbnail: z.string().optional(), // client-side SVG data URL snapshot
+  designData: z.string().optional(), // full design JSON snapshot when no savedDesignId exists (e.g. guest checkout)
 });
 
 export const createOrderSchema = z.object({

@@ -186,7 +186,7 @@ const Cart = () => {
 
                     {item.slug && item.customPrint && (
                       <Link
-                        href={`/products/${item.slug}/customize${item.designId ? `?designId=${item.designId}` : ""}`}
+                        href={`/products/${item.slug}/customize?${item.designId ? `designId=${item.designId}` : `draftKey=${item.cartLineId}`}`}
                         className="flex items-center gap-1.5 text-primary hover:text-primary/80 text-xs font-medium transition-colors"
                       >
                         <Pencil size={14} />

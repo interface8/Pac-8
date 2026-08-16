@@ -47,6 +47,9 @@ import {
   ClipboardPaste,
   Wand2,
 } from "lucide-react";
+import { useSelector, useDispatch } from "react-redux";
+import type { RootState } from "@/store";
+import { updateItemDesign } from "@/store/cartSlice";
 import { useProduct } from "@/hooks/use-products";
 import { useAddToCart } from "@/hooks/use-add-to-cart";
 import { toast } from "react-toastify";
@@ -807,6 +810,7 @@ export default function CustomizeProductPage({
   const { slug } = params;
   const { product, loading, error } = useProduct(slug);
   const addToCartDispatch = useAddToCart();
+  const dispatch = useDispatch();
   const searchParams = useSearchParams();
 
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -840,6 +844,8 @@ export default function CustomizeProductPage({
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [snapIndicator, setSnapIndicator] = useState<{ x: boolean; y: boolean }>({ x: false, y: false });
   const [mobilePanelOpenState, setMobilePanelOpenState] = useState(false);
+  // When set, the next uploaded file replaces this image element's src instead of adding a new element
+  const [replacingElementId, setReplacingElementId] = useState<string | null>(null);
 
   // Shape tool state
   const [shapeType, setShapeType] = useState<ShapeType>("rectangle");
@@ -901,11 +907,18 @@ export default function CustomizeProductPage({
     [activeViewKey, pushHistory]
   );
 
-  // â”€â”€ Load product views from API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Load product views from API ─────────────────────────────
   // Fetch both product views and any existing saved design in parallel,
   // then set state ONCE. This prevents the race condition where the
   // views-reset would overwrite a saved design that happened to load first.
   const designIdParam = searchParams?.get("designId");
+  // Fallback for designs that only ever existed locally in the cart (e.g. guests,
+  // or a server save that failed) — the cart item's own design snapshot travels
+  // via "draftKey" (its cartLineId) so it can still be reopened for editing.
+  const draftKeyParam = searchParams?.get("draftKey");
+  const draftCartItem = useSelector((state: RootState) =>
+    draftKeyParam ? state.cart.items.find((i) => i.cartLineId === draftKeyParam) : undefined
+  );
   useEffect(() => {
     if (!product) return;
     setViewsLoading(true);
@@ -934,6 +947,7 @@ export default function CustomizeProductPage({
 
         // Merge saved design on top — no race condition possible
         const d = designJson?.data;
+        let loadedFromServer = false;
         if (d && d.productId === product.id) {
           if (d.name) setDesignName(d.name);
           setExistingDesignId(d.id);
@@ -944,9 +958,28 @@ export default function CustomizeProductPage({
                 Object.entries(parsed.views as Record<string, ViewDesignState>).forEach(([key, viewState]) => {
                   initial[key] = viewState;
                 });
+                loadedFromServer = true;
               }
             } catch { /* malformed — start fresh */ }
           }
+        }
+
+        // Fall back to the design snapshot carried locally by the cart item when
+        // there's no (or no usable) server-saved design for this designId.
+        if (!loadedFromServer && draftCartItem?.designData) {
+          try {
+            const parsed = JSON.parse(draftCartItem.designData) as Record<string, unknown>;
+            if (parsed.version === "3" && parsed.views && typeof parsed.views === "object") {
+              Object.entries(parsed.views as Record<string, ViewDesignState>).forEach(([key, viewState]) => {
+                initial[key] = viewState;
+              });
+              loadedFromServer = true;
+              setDesignName(draftCartItem.name);
+            }
+          } catch { /* malformed — start fresh */ }
+        }
+
+        if (loadedFromServer) {
           toast.info("Design loaded — continue where you left off!", { autoClose: 3000 });
         }
 
@@ -959,9 +992,19 @@ export default function CustomizeProductPage({
       })
       .finally(() => setViewsLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product, designIdParam]);
+  }, [product, designIdParam, draftKeyParam]);
 
-  // â”€â”€ Auto-save every 90 seconds â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // When editing an existing cart line, pre-fill its quantity once so
+  // "Add to Cart" naturally becomes "update this line" with matching quantity.
+  const quantityPrefilledRef = useRef(false);
+  useEffect(() => {
+    if (draftCartItem && !quantityPrefilledRef.current) {
+      setQuantity(draftCartItem.quantity);
+      quantityPrefilledRef.current = true;
+    }
+  }, [draftCartItem]);
+
+  // ── Auto-save every 90 seconds ───────────────────────────
   useEffect(() => {
     if (!product || !existingDesignId) return;
     const timer = setInterval(async () => {
@@ -998,7 +1041,7 @@ export default function CustomizeProductPage({
         deleteElement(selectedElementId);
         return;
       }
-      if (e.key === "Escape") { setSelectedElementId(null); return; }
+      if (e.key === "Escape") { deselectElement(); return; }
 
       // Arrow key nudge
       if (selectedElementId && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
@@ -1054,7 +1097,9 @@ export default function CustomizeProductPage({
       } as TextElement],
     }));
     setSelectedElementId(id);
-    setActiveTool("select");
+    // Keep the Text tool active (instead of switching to Select) so the edit
+    // panel for the freshly-added text stays open and ready for immediate typing.
+    setMobilePanelOpenState(true);
   };
 
   const addImageElement = (src: string) => {
@@ -1071,7 +1116,7 @@ export default function CustomizeProductPage({
       } as ImageElement],
     }));
     setSelectedElementId(id);
-    setActiveTool("select");
+    setMobilePanelOpenState(true);
   };
 
   const addQRElement = (data: string) => {
@@ -1087,7 +1132,7 @@ export default function CustomizeProductPage({
       } as QRElement],
     }));
     setSelectedElementId(id);
-    setActiveTool("select");
+    setMobilePanelOpenState(true);
   };
 
   const addShapeElement = () => {
@@ -1104,7 +1149,7 @@ export default function CustomizeProductPage({
       } as ShapeElement],
     }));
     setSelectedElementId(id);
-    setActiveTool("select");
+    setMobilePanelOpenState(true);
   };
 
   const updateElement = (id: string, updates: Partial<DesignElement>) => {
@@ -1225,7 +1270,16 @@ export default function CustomizeProductPage({
     if (!allowed.includes(file.type)) { toast.error("Please upload PNG, JPEG, SVG, or WebP"); return; }
     if (file.size > 5 * 1024 * 1024) { toast.error("File size must be under 5MB"); return; }
     const reader = new FileReader();
-    reader.onload = () => { if (typeof reader.result === "string") addImageElement(reader.result); };
+    reader.onload = () => {
+      if (typeof reader.result !== "string") return;
+      if (replacingElementId) {
+        updateElement(replacingElementId, { src: reader.result } as Partial<DesignElement>);
+        setReplacingElementId(null);
+        toast.success("Image replaced");
+      } else {
+        addImageElement(reader.result);
+      }
+    };
     reader.readAsDataURL(file);
     e.target.value = "";
   };
@@ -1306,35 +1360,60 @@ export default function CustomizeProductPage({
     }
   };
 
-  // â”€â”€ Add to cart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Add to cart ────────────────────────────────────────────
   const handleAddToCart = async () => {
     if (!product) return;
     setAddingToCart(true);
     try {
-      // Auto-save the design if it hasn't been saved yet
+      // Best-effort server save (requires login) so the design also shows up under
+      // "My Designs". This is NOT required for the cart/edit flow to work below —
+      // the full design snapshot always travels with the cart item itself, so
+      // guests (and any save failure) still get a fully editable/re-orderable design.
       let finalDesignId = existingDesignId;
       if (!finalDesignId) {
-        finalDesignId = await saveDesign();
+        try {
+          finalDesignId = await saveDesign();
+        } catch { /* not logged in or save failed — fall back to the local snapshot below */ }
       }
 
       // Generate thumbnail using shared helper
       const designThumbnail = generateThumbnail(viewDesigns, activeViewKey);
+      // Raw design snapshot, always included so the item can be reopened for editing
+      // and so the full design (not just a thumbnail) survives through checkout.
+      const designData = JSON.stringify({ version: "3", views: viewDesigns } as MultiViewDesignData);
 
       // Add to Redux cart with all custom-print details
       const mainImg = product.images?.find((i: { isMain: boolean }) => i.isMain) ?? product.images?.[0];
       const printPrice = product.allowCustomPrint ? Number(product.printPrice ?? 0) : 0;
-      addToCartDispatch({
-        id: product.id,
-        name: product.name,
-        image: mainImg?.url ?? "",
-        price: product.price + printPrice,
-        quantity,
-        slug: product.slug,
-        designThumbnail,
-        customPrint: product.allowCustomPrint ?? false,
-        printPrice,
-        designId: finalDesignId ?? undefined,
-      });
+      if (draftKeyParam && draftCartItem) {
+        // Editing a design that's already a specific cart line — update that line
+        // in place instead of merging into (or duplicating alongside) another item.
+        dispatch(updateItemDesign({
+          cartLineId: draftKeyParam,
+          name: product.name,
+          image: mainImg?.url ?? "",
+          price: product.price + printPrice,
+          quantity,
+          designThumbnail,
+          designId: finalDesignId ?? undefined,
+          designData,
+        }));
+        toast.success("Design updated in cart!");
+      } else {
+        addToCartDispatch({
+          id: product.id,
+          name: product.name,
+          image: mainImg?.url ?? "",
+          price: product.price + printPrice,
+          quantity,
+          slug: product.slug,
+          designThumbnail,
+          customPrint: product.allowCustomPrint ?? false,
+          printPrice,
+          designId: finalDesignId ?? undefined,
+          designData,
+        });
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to add to cart");
     } finally {
@@ -1345,6 +1424,19 @@ export default function CustomizeProductPage({
   // â”€â”€ Canvas drag handling â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const SNAP_THRESHOLD = 12;
 
+  // Selecting an element on the canvas syncs the active tool to that element's type
+  // (so its dedicated editor shows immediately) and opens the mobile edit sheet.
+  const typeToToolMap: Record<DesignElement["type"], ToolType> = { text: "text", image: "image", qr: "qr", shape: "shapes" };
+  const selectElement = (el: DesignElement) => {
+    setSelectedElementId(el.id);
+    setActiveTool(typeToToolMap[el.type]);
+    setMobilePanelOpenState(true);
+  };
+  const deselectElement = () => {
+    setSelectedElementId(null);
+    setMobilePanelOpenState(false);
+  };
+
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     if (!canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
@@ -1354,12 +1446,12 @@ export default function CustomizeProductPage({
       const el = currentDesign.elements[i];
       if ((el as TextElement).locked) continue;
       if (x >= el.x - el.width / 2 && x <= el.x + el.width / 2 && y >= el.y - el.height / 2 && y <= el.y + el.height / 2) {
-        setSelectedElementId(el.id);
+        selectElement(el);
         setDragging({ elementId: el.id, offsetX: x - el.x, offsetY: y - el.y });
         return;
       }
     }
-    setSelectedElementId(null);
+    deselectElement();
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent) => {
@@ -1401,12 +1493,12 @@ export default function CustomizeProductPage({
       const el = currentDesign.elements[i];
       if ((el as TextElement).locked) continue;
       if (x >= el.x - el.width / 2 && x <= el.x + el.width / 2 && y >= el.y - el.height / 2 && y <= el.y + el.height / 2) {
-        setSelectedElementId(el.id);
+        selectElement(el);
         setDragging({ elementId: el.id, offsetX: x - el.x, offsetY: y - el.y });
         return;
       }
     }
-    setSelectedElementId(null);
+    deselectElement();
   };
 
   const handleCanvasTouchMove = (e: React.TouchEvent) => {
@@ -1431,10 +1523,12 @@ export default function CustomizeProductPage({
     if (dragging) { pushHistory(activeViewKey, currentDesign); setDragging(null); }
   };
 
-  // â”€â”€ Mobile panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Mobile panel ───────────────────────────────────────────
   const handleMobileToolClick = (toolId: ToolType) => {
-    if (activeTool === toolId && mobilePanelOpenState) setMobilePanelOpenState(false);
-    else { setActiveTool(toolId); setMobilePanelOpenState(true); }
+    if (activeTool === toolId && mobilePanelOpenState) { setMobilePanelOpenState(false); return; }
+    if (selectedElement && typeToToolMap[selectedElement.type] !== toolId) setSelectedElementId(null);
+    setActiveTool(toolId);
+    setMobilePanelOpenState(true);
   };
 
   // â”€â”€ Auto-fit zoom on mobile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -1490,11 +1584,98 @@ export default function CustomizeProductPage({
       .map(([k]) => k)
   );
 
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // GENERIC ELEMENT CONTROLS (position, alignment, layering, lock, duplicate, delete)
+  // Rendered alongside the type-specific fields below so a selected element is always
+  // fully editable no matter which tool happens to be active - fixes the bug where
+  // selecting an existing element (with the Select tool) showed no way to edit it.
+  const renderGenericControls = (el: DesignElement) => (
+    <div className="space-y-3 pt-3 border-t border-border">
+      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Position &amp; Layer</h4>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="text-xs text-muted-foreground">X</label>
+          <input type="number" value={Math.round(el.x)}
+            onChange={(e) => updateElement(el.id, { x: Number(e.target.value) } as Partial<DesignElement>)}
+            className="w-full h-8 bg-muted border border-border rounded-lg px-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground">Y</label>
+          <input type="number" value={Math.round(el.y)}
+            onChange={(e) => updateElement(el.id, { y: Number(e.target.value) } as Partial<DesignElement>)}
+            className="w-full h-8 bg-muted border border-border rounded-lg px-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+        </div>
+      </div>
+
+      <div>
+        <label className="text-xs text-muted-foreground mb-1.5 block">Align to canvas</label>
+        <div className="grid grid-cols-3 gap-1">
+          {([
+            { key: "left", label: "Left" }, { key: "centerH", label: "Center" }, { key: "right", label: "Right" },
+            { key: "top", label: "Top" }, { key: "centerV", label: "Middle" }, { key: "bottom", label: "Bottom" },
+          ] as const).map(({ key, label }) => (
+            <button key={key} onClick={() => alignElement(el.id, key)}
+              className="h-8 rounded-lg text-[10px] bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground transition">
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="text-xs text-muted-foreground mb-1.5 block">Layer order</label>
+        <div className="grid grid-cols-4 gap-1">
+          <button onClick={() => sendToBack(el.id)} title="Send to back"
+            className="h-8 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition flex items-center justify-center">
+            <ChevronsDown size={14} />
+          </button>
+          <button onClick={() => sendBackward(el.id)} title="Move backward"
+            className="h-8 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition flex items-center justify-center">
+            <ChevronDown size={14} />
+          </button>
+          <button onClick={() => bringForward(el.id)} title="Move forward"
+            className="h-8 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition flex items-center justify-center">
+            <ChevronUp size={14} />
+          </button>
+          <button onClick={() => bringToFront(el.id)} title="Bring to front"
+            className="h-8 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition flex items-center justify-center">
+            <ChevronsUp size={14} />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <button onClick={() => updateElement(el.id, { locked: !(el as TextElement).locked } as Partial<DesignElement>)}
+          className={`flex-1 h-9 flex items-center justify-center gap-1.5 text-xs rounded-lg font-medium transition ${(el as TextElement).locked ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}>
+          {(el as TextElement).locked ? <><Lock size={12} /> Locked</> : <><Unlock size={12} /> Lock</>}
+        </button>
+        <button onClick={() => setClipboard({ ...el, id: generateId() })}
+          title="Copy element (Ctrl+C)"
+          className="flex-1 h-9 bg-muted text-muted-foreground rounded-lg text-xs font-medium hover:bg-muted/80 transition flex items-center justify-center gap-1">
+          <Copy size={12} /> Copy
+        </button>
+      </div>
+
+      <div className="flex gap-2">
+        <button onClick={() => duplicateElement(el.id)}
+          className="flex-1 h-9 bg-muted text-muted-foreground rounded-lg text-xs font-medium hover:bg-muted/80 transition flex items-center justify-center gap-1">
+          <Copy size={12} /> Duplicate
+        </button>
+        <button onClick={() => deleteElement(el.id)}
+          className="flex-1 h-9 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition flex items-center justify-center gap-1">
+          <Trash2 size={12} /> Delete
+        </button>
+      </div>
+    </div>
+  );
+
   // TOOL PANEL
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const renderToolPanel = () => {
-    switch (activeTool) {
+    // If the Select tool is active and an element on the canvas is already selected,
+    // route to that element's dedicated editor so it's always immediately editable -
+    // no need to manually reselect the matching tool to edit an existing element.
+    const typeToTool: Record<DesignElement["type"], ToolType> = { text: "text", image: "image", qr: "qr", shape: "shapes" };
+    const panelKey: ToolType = activeTool === "select" && selectedElement ? typeToTool[selectedElement.type] : activeTool;
+    switch (panelKey) {
 
       // â”€â”€ TEXT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       case "text":
@@ -1649,6 +1830,8 @@ export default function CustomizeProductPage({
                 </div>
               </div>
             )}
+
+            {selectedElement?.type === "text" && renderGenericControls(selectedElement)}
           </div>
         );
 
@@ -1739,8 +1922,16 @@ export default function CustomizeProductPage({
                     onChange={(e) => updateElement(selectedElement.id, { rotation: Number(e.target.value) })}
                     className="w-full accent-primary" />
                 </div>
+
+                {/* Replace image */}
+                <button onClick={() => { setReplacingElementId(selectedElement.id); fileInputRef.current?.click(); }}
+                  className="w-full h-9 flex items-center justify-center gap-2 text-xs border border-dashed border-border rounded-lg text-muted-foreground hover:border-primary hover:text-primary transition">
+                  <Upload size={13} /> Replace image
+                </button>
               </div>
             )}
+
+            {selectedElement?.type === "image" && renderGenericControls(selectedElement)}
           </div>
         );
 
@@ -1854,6 +2045,12 @@ export default function CustomizeProductPage({
               <div className="space-y-3 pt-3 border-t border-border">
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">QR Settings</h4>
                 <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Encoded data</label>
+                  <input type="text" value={selectedElement.data}
+                    onChange={(e) => updateElement(selectedElement.id, { data: e.target.value })}
+                    className="w-full h-9 bg-muted border border-border rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+                <div>
                   <label className="text-xs text-muted-foreground">Size: {Math.round(selectedElement.width)}px</label>
                   <input type="range" min={60} max={250} value={selectedElement.width}
                     onChange={(e) => { const s = Number(e.target.value); updateElement(selectedElement.id, { width: s, height: s }); }}
@@ -1865,8 +2062,16 @@ export default function CustomizeProductPage({
                     onChange={(e) => updateElement(selectedElement.id, { opacity: Number(e.target.value) })}
                     className="w-full accent-primary" />
                 </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Rotation: {selectedElement.rotation}Â°</label>
+                  <input type="range" min={0} max={360} value={selectedElement.rotation}
+                    onChange={(e) => updateElement(selectedElement.id, { rotation: Number(e.target.value) })}
+                    className="w-full accent-primary" />
+                </div>
               </div>
             )}
+
+            {selectedElement?.type === "qr" && renderGenericControls(selectedElement)}
           </div>
         );
 
@@ -1974,6 +2179,32 @@ export default function CustomizeProductPage({
                     <span className="text-xs text-muted-foreground font-mono">{selectedElement.fillColor}</span>
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Stroke color</label>
+                    <div className="flex items-center gap-1">
+                      <input type="color" value={selectedElement.strokeColor === "transparent" ? "#1a1a1a" : selectedElement.strokeColor}
+                        onChange={(e) => updateElement(selectedElement.id, { strokeColor: e.target.value })}
+                        className="w-8 h-8 rounded cursor-pointer border border-border" />
+                      <button onClick={() => updateElement(selectedElement.id, { strokeColor: "transparent" })}
+                        className="text-[10px] text-muted-foreground hover:text-foreground">None</button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Width</label>
+                    <input type="number" min={0} max={20} value={selectedElement.strokeWidth}
+                      onChange={(e) => updateElement(selectedElement.id, { strokeWidth: Number(e.target.value) })}
+                      className="w-full h-9 bg-muted border border-border rounded-lg px-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  </div>
+                </div>
+                {selectedElement.shape === "rectangle" && (
+                  <div>
+                    <label className="text-xs text-muted-foreground">Corner radius: {selectedElement.rx}px</label>
+                    <input type="range" min={0} max={80} value={selectedElement.rx}
+                      onChange={(e) => updateElement(selectedElement.id, { rx: Number(e.target.value) })}
+                      className="w-full accent-primary" />
+                  </div>
+                )}
                 <div>
                   <label className="text-xs text-muted-foreground">Opacity: {Math.round(selectedElement.opacity * 100)}%</label>
                   <input type="range" min={0} max={1} step={0.01} value={selectedElement.opacity}
@@ -1988,6 +2219,8 @@ export default function CustomizeProductPage({
                 </div>
               </div>
             )}
+
+            {selectedElement?.type === "shape" && renderGenericControls(selectedElement)}
           </div>
         );
 
@@ -2034,99 +2267,13 @@ export default function CustomizeProductPage({
           </div>
         );
 
-      // â”€â”€ SELECT (properties) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // â”€â”€ SELECT (nothing chosen yet) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       default:
         return (
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">
-              {selectedElement ? "Element Properties" : "Selection"}
-            </h3>
-            {!selectedElement && (
-              <p className="text-xs text-muted-foreground">Click an element on the canvas to select it, or use the tools to add new elements.</p>
-            )}
-            {selectedElement && (
-              <div className="space-y-3">
-                {/* Position */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-xs text-muted-foreground">X</label>
-                    <input type="number" value={Math.round(selectedElement.x)}
-                      onChange={(e) => updateElement(selectedElement.id, { x: Number(e.target.value) } as Partial<DesignElement>)}
-                      className="w-full h-8 bg-muted border border-border rounded-lg px-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Y</label>
-                    <input type="number" value={Math.round(selectedElement.y)}
-                      onChange={(e) => updateElement(selectedElement.id, { y: Number(e.target.value) } as Partial<DesignElement>)}
-                      className="w-full h-8 bg-muted border border-border rounded-lg px-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                  </div>
-                </div>
-
-                {/* Alignment */}
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1.5 block">Align to canvas</label>
-                  <div className="grid grid-cols-3 gap-1">
-                    {([
-                      { key: "left", label: "â¬› Left" }, { key: "centerH", label: "â¬› Center" }, { key: "right", label: "â¬› Right" },
-                      { key: "top", label: "â¬œ Top" }, { key: "centerV", label: "â¬œ Middle" }, { key: "bottom", label: "â¬œ Bottom" },
-                    ] as const).map(({ key, label }) => (
-                      <button key={key} onClick={() => alignElement(selectedElement.id, key)}
-                        className="h-8 rounded-lg text-[10px] bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground transition">
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Layer order */}
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1.5 block">Layer order</label>
-                  <div className="grid grid-cols-4 gap-1">
-                    <button onClick={() => sendToBack(selectedElement.id)} title="Send to back"
-                      className="h-8 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition flex items-center justify-center">
-                      <ChevronsDown size={14} />
-                    </button>
-                    <button onClick={() => sendBackward(selectedElement.id)} title="Move backward"
-                      className="h-8 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition flex items-center justify-center">
-                      <ChevronDown size={14} />
-                    </button>
-                    <button onClick={() => bringForward(selectedElement.id)} title="Move forward"
-                      className="h-8 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition flex items-center justify-center">
-                      <ChevronUp size={14} />
-                    </button>
-                    <button onClick={() => bringToFront(selectedElement.id)} title="Bring to front"
-                      className="h-8 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition flex items-center justify-center">
-                      <ChevronsUp size={14} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Lock / Rotate */}
-                <div className="flex gap-2">
-                  <button onClick={() => updateElement(selectedElement.id, { locked: !(selectedElement as TextElement).locked } as Partial<DesignElement>)}
-                    className={`flex-1 h-9 flex items-center justify-center gap-1.5 text-xs rounded-lg font-medium transition ${(selectedElement as TextElement).locked ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}>
-                    {(selectedElement as TextElement).locked ? <><Lock size={12} /> Locked</> : <><Unlock size={12} /> Lock</>}
-                  </button>
-                  <button onClick={() => setClipboard({ ...selectedElement, id: generateId() })}
-                    title="Copy element (Ctrl+C)"
-                    className="flex-1 h-9 bg-muted text-muted-foreground rounded-lg text-xs font-medium hover:bg-muted/80 transition flex items-center justify-center gap-1">
-                    <Copy size={12} /> Copy
-                  </button>
-                </div>
-
-                {/* Duplicate / Delete */}
-                <div className="flex gap-2">
-                  <button onClick={() => duplicateElement(selectedElement.id)}
-                    className="flex-1 h-9 bg-muted text-muted-foreground rounded-lg text-xs font-medium hover:bg-muted/80 transition flex items-center justify-center gap-1">
-                    <Copy size={12} /> Duplicate
-                  </button>
-                  <button onClick={() => deleteElement(selectedElement.id)}
-                    className="flex-1 h-9 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition flex items-center justify-center gap-1">
-                    <Trash2 size={12} /> Delete
-                  </button>
-                </div>
-              </div>
-            )}
+            <h3 className="text-sm font-semibold text-foreground">Selection</h3>
+            <p className="text-xs text-muted-foreground">Click an element on the canvas to select and edit it, or use a tool on the left to add something new.</p>
+            {selectedElement && renderGenericControls(selectedElement)}
 
             {/* Keyboard shortcut hint */}
             <div className="pt-3 border-t border-border">
@@ -2164,13 +2311,18 @@ export default function CustomizeProductPage({
         onMouseDown={(e) => {
           e.stopPropagation();
           if ((el as TextElement).locked) return;
-          setSelectedElementId(el.id);
+          selectElement(el);
           if (canvasRef.current) {
             const rect = canvasRef.current.getBoundingClientRect();
             const x = (e.clientX - rect.left) / zoom;
             const y = (e.clientY - rect.top) / zoom;
             setDragging({ elementId: el.id, offsetX: x - el.x, offsetY: y - el.y });
           }
+        }}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          if ((el as TextElement).locked) return;
+          selectElement(el);
         }}>
         {el.type === "text" && (
           <div style={{
@@ -2224,6 +2376,42 @@ export default function CustomizeProductPage({
         {(el as TextElement).locked && (
           <div style={{ position: "absolute", top: -8, right: -8, zIndex: 20 }}>
             <Lock size={10} className="text-amber-500" />
+          </div>
+        )}
+
+        {/* Floating quick-action toolbar — appears only for the selected element so the
+            canvas stays clean otherwise, and gives one-tap access to the most common
+            actions without needing to open the full side/bottom editor panel. */}
+        {isSelected && (
+          <div
+            className="absolute left-1/2 flex items-center gap-0.5 bg-card border border-border rounded-lg shadow-lg px-1 py-1 z-20"
+            style={{
+              top: el.y - el.height / 2 < 46 ? "100%" : undefined,
+              bottom: el.y - el.height / 2 < 46 ? undefined : "100%",
+              marginTop: el.y - el.height / 2 < 46 ? 8 : undefined,
+              marginBottom: el.y - el.height / 2 < 46 ? undefined : 8,
+              transform: "translateX(-50%) rotate(0deg)",
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+          >
+            <button title="Edit" onClick={() => { setActiveTool(typeToToolMap[el.type]); setMobilePanelOpenState(true); }}
+              className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-primary hover:text-primary-foreground transition">
+              <Sparkles size={13} />
+            </button>
+            <button title="Duplicate" onClick={() => duplicateElement(el.id)}
+              className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted transition">
+              <Copy size={13} />
+            </button>
+            <button title={(el as TextElement).locked ? "Unlock" : "Lock"}
+              onClick={() => updateElement(el.id, { locked: !(el as TextElement).locked } as Partial<DesignElement>)}
+              className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted transition">
+              {(el as TextElement).locked ? <Unlock size={13} /> : <Lock size={13} />}
+            </button>
+            <button title="Delete" onClick={() => deleteElement(el.id)}
+              className="w-7 h-7 flex items-center justify-center rounded-md text-red-500 hover:bg-red-50 transition">
+              <Trash2 size={13} />
+            </button>
           </div>
         )}
       </div>
@@ -2339,7 +2527,7 @@ export default function CustomizeProductPage({
             </button>
             <button onClick={async () => { await handleAddToCart(); setShowPreview(false); }} disabled={addingToCart}
               className="h-10 px-6 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition disabled:opacity-50 flex items-center gap-2">
-              <ShoppingCart size={15} /> {addingToCart ? "Adding..." : "Add to Cart"}
+              <ShoppingCart size={15} /> {addingToCart ? "Adding..." : draftKeyParam ? "Update Cart" : "Add to Cart"}
             </button>
           </div>
         </div>
@@ -2472,7 +2660,7 @@ export default function CustomizeProductPage({
                   return (
                     <div key={el.id}
                       className={`flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer transition ${el.id === selectedElementId ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-muted"}`}
-                      onClick={() => setSelectedElementId(el.id)}>
+                      onClick={() => selectElement(el)}>
                       <div className="text-muted-foreground shrink-0">
                         {el.type === "text" ? <Type size={12} /> : el.type === "image" ? <ImageIcon size={12} /> : el.type === "qr" ? <QrCode size={12} /> : <Square size={12} />}
                       </div>
@@ -2585,7 +2773,7 @@ export default function CustomizeProductPage({
               </button>
               <button onClick={handleAddToCart} disabled={addingToCart || saving}
                 className="w-full h-11 flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition disabled:opacity-50 shadow-sm">
-                <ShoppingCart size={16} /> {addingToCart ? "Adding to Cart..." : "Add to Cart"}
+                <ShoppingCart size={16} /> {addingToCart ? "Adding to Cart..." : draftKeyParam ? "Update Cart" : "Add to Cart"}
               </button>
               <Link href="/cart"
                 className="w-full h-9 flex items-center justify-center gap-2 text-xs text-primary border border-primary/30 rounded-lg hover:bg-primary/5 transition">
@@ -2692,7 +2880,7 @@ export default function CustomizeProductPage({
               <button onClick={handleAddToCart} disabled={addingToCart || saving}
                 className="h-9 px-3 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition flex items-center justify-center gap-1.5 disabled:opacity-50">
                 <ShoppingCart size={15} />
-                <span className="hidden sm:inline">{addingToCart ? "Adding…" : "Add to Cart"}</span>
+                <span className="hidden sm:inline">{addingToCart ? "Adding…" : draftKeyParam ? "Update Cart" : "Add to Cart"}</span>
               </button>
             </div>
           </div>
@@ -2713,7 +2901,10 @@ export default function CustomizeProductPage({
               { id: "finish" as ToolType, icon: Sparkles, label: "Finish" },
               { id: "template" as ToolType, icon: LayoutTemplate, label: "Templates" },
             ]).map((tool) => (
-              <button key={tool.id} onClick={() => setActiveTool(tool.id)} title={tool.label}
+              <button key={tool.id} onClick={() => {
+                  if (selectedElement && typeToToolMap[selectedElement.type] !== tool.id) setSelectedElementId(null);
+                  setActiveTool(tool.id);
+                }} title={tool.label}
                 className={`w-10 h-10 rounded-lg flex items-center justify-center transition ${activeTool === tool.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>
                 <tool.icon size={18} />
               </button>
@@ -2729,8 +2920,9 @@ export default function CustomizeProductPage({
           <div className="flex-1 flex flex-col overflow-hidden">
             <ViewSelector />
 
-            {/* Canvas scroll area */}
-            <div className="flex-1 bg-muted/40 overflow-auto flex items-center justify-center relative pb-16 md:pb-0" style={{ background: "repeating-conic-gradient(#e2e8f0 0% 25%, transparent 0% 50%) 0 0 / 20px 20px" }}>
+            {/* Canvas scroll area — shrinks (rather than being covered) when the mobile
+                edit panel below is open, so the product being customized stays visible. */}
+            <div className="flex-1 min-h-0 bg-muted/40 overflow-auto flex items-center justify-center relative pb-16 md:pb-0" style={{ background: "repeating-conic-gradient(#e2e8f0 0% 25%, transparent 0% 50%) 0 0 / 20px 20px" }}>
               <div
                 ref={canvasRef}
                 className="relative rounded-lg shadow-2xl overflow-hidden touch-none select-none"
@@ -2792,17 +2984,17 @@ export default function CustomizeProductPage({
                 )}
               </div>
             </div>
-          </div>
 
-          {/* Right panel (xl screens) */}
-          <RightPanel />
-
-          {/* Mobile: bottom toolbar */}
-          <div className="md:hidden fixed bottom-0 left-0 right-0 z-30">
+            {/* Mobile edit panel — sits in normal document flow (not an overlay) directly
+                above the fixed bottom tool bar, so it reflows/shrinks the canvas area
+                instead of hiding the product being customized underneath it. */}
             {mobilePanelOpenState && (
-              <div className="bg-card border-t border-border max-h-[50vh] overflow-y-auto px-4 py-3 shadow-xl">
+              <div className="md:hidden bg-card border-t border-border max-h-[38vh] overflow-y-auto px-4 py-3 shadow-xl shrink-0 mb-16 rounded-t-2xl">
+                <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-border" />
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-foreground capitalize">{activeTool}</h3>
+                  <h3 className="text-sm font-semibold text-foreground capitalize">
+                    {selectedElement ? `Edit ${selectedElement.type}` : activeTool}
+                  </h3>
                   <button onClick={() => setMobilePanelOpenState(false)}
                     className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition text-muted-foreground">
                     <X size={16} />
@@ -2811,23 +3003,29 @@ export default function CustomizeProductPage({
                 {renderToolPanel()}
               </div>
             )}
-            <div className="bg-card border-t border-border px-2 py-2 flex items-center justify-around gap-1">
-              {([
-                { id: "select" as ToolType, icon: Move, label: "Select" },
-                { id: "text" as ToolType, icon: Type, label: "Text" },
-                { id: "image" as ToolType, icon: ImageIcon, label: "Image" },
-                { id: "shapes" as ToolType, icon: Square, label: "Shape" },
-                { id: "color" as ToolType, icon: Palette, label: "Color" },
-                { id: "qr" as ToolType, icon: QrCode, label: "QR" },
-                { id: "template" as ToolType, icon: LayoutTemplate, label: "Template" },
-              ]).map((tool) => (
-                <button key={tool.id} onClick={() => handleMobileToolClick(tool.id)}
-                  className={`flex flex-col items-center justify-center gap-0.5 py-1.5 px-1.5 rounded-lg transition min-w-0 ${activeTool === tool.id ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}>
-                  <tool.icon size={17} />
-                  <span className="text-[9px] leading-tight">{tool.label}</span>
-                </button>
-              ))}
-            </div>
+          </div>
+
+          {/* Right panel (xl screens) */}
+          <RightPanel />
+
+          {/* Mobile: bottom tool icon bar — always fixed and always visible so switching
+              tools or dismissing the edit panel never requires scrolling. */}
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-card border-t border-border px-2 py-2 flex items-center justify-around gap-1">
+            {([
+              { id: "select" as ToolType, icon: Move, label: "Select" },
+              { id: "text" as ToolType, icon: Type, label: "Text" },
+              { id: "image" as ToolType, icon: ImageIcon, label: "Image" },
+              { id: "shapes" as ToolType, icon: Square, label: "Shape" },
+              { id: "color" as ToolType, icon: Palette, label: "Color" },
+              { id: "qr" as ToolType, icon: QrCode, label: "QR" },
+              { id: "template" as ToolType, icon: LayoutTemplate, label: "Template" },
+            ]).map((tool) => (
+              <button key={tool.id} onClick={() => handleMobileToolClick(tool.id)}
+                className={`flex flex-col items-center justify-center gap-0.5 py-1.5 px-1.5 rounded-lg transition min-w-0 ${activeTool === tool.id ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}>
+                <tool.icon size={17} />
+                <span className="text-[9px] leading-tight">{tool.label}</span>
+              </button>
+            ))}
           </div>
         </div>
       </main>
