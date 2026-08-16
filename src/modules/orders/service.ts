@@ -66,7 +66,9 @@ export async function createOrder(input: CreateOrderInput) {
     const unitPrice = product.price + printPrice;
     const totalPrice = unitPrice * item.quantity;
 
-    // Snapshot design data if a saved design is referenced
+    // Snapshot design data if a saved design is referenced, otherwise fall back to
+    // the raw design JSON passed straight from the cart (covers guests / anyone
+    // whose design never made it into a persisted SavedDesign row).
     let designDataSnapshot: string | undefined;
     if (item.savedDesignId) {
       const design = await prisma.savedDesign.findUnique({
@@ -82,8 +84,15 @@ export async function createOrder(input: CreateOrderInput) {
         if (thumbnail) parsed._thumbnailUrl = thumbnail;
         designDataSnapshot = JSON.stringify(parsed);
       }
+    } else if (item.designData) {
+      // Raw client-provided design JSON (e.g. guest checkout, or the design never
+      // saved server-side) — embed the thumbnail the same way so previews work.
+      let parsed: Record<string, unknown> = {};
+      try { parsed = JSON.parse(item.designData); } catch { /* invalid JSON — fall back to thumbnail only */ }
+      if (item.designThumbnail) parsed._thumbnailUrl = item.designThumbnail;
+      designDataSnapshot = JSON.stringify(parsed);
     } else if (item.designThumbnail) {
-      // No savedDesign link — store the cart thumbnail so admin can still preview
+      // No saved design or raw snapshot — store just the cart thumbnail so admin can still preview
       designDataSnapshot = JSON.stringify({ _thumbnailUrl: item.designThumbnail });
     }
 

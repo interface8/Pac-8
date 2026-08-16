@@ -16,6 +16,7 @@ interface AddToCartParams {
   customPrint?: boolean;
   printPrice?: number;
   designId?: string;
+  designData?: string;
 }
 
 export function useAddToCart() {
@@ -36,6 +37,7 @@ export function useAddToCart() {
           customPrint: product.customPrint,
           printPrice: product.printPrice,
           designId: product.designId,
+          designData: product.designData,
         })
       );
       toast.success(

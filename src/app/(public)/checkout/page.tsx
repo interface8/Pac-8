@@ -203,6 +203,9 @@ export default function CheckoutPage() {
           printText: item.customPrint && !item.designId ? item.name : undefined,
           savedDesignId: item.designId || undefined,
           designThumbnail: item.designThumbnail || undefined,
+          // Full design JSON, used when there's no server-saved design (e.g. guest
+          // checkout) so the actual customization survives in order history.
+          designData: item.customPrint && !item.designId ? item.designData || undefined : undefined,
         })),
       };
 
